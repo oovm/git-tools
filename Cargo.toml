@@ -2,6 +2,7 @@
 members = ["projects/*"]
 default-members = [
     "projects/git-bfg",
+    "projects/git-reword",
 ]
 exclude = [
     "projects/.DS_Store",

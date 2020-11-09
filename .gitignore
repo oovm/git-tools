@@ -6,8 +6,15 @@
 .vs/**/*
 .idea/**/*
 *.iml
+*.log
+*.txt
 
 # Rust
 target/**/*
 Cargo.lock
 time-travel.*
+reword.pending.txt
+
+# Node
+node_modules/
+dist/
