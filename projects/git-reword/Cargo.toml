@@ -1,0 +1,22 @@
+[package]
+name = "git-reword"
+version = "0.1.0"
+authors = ["Aster <192607617@qq.com>"]
+description = "Rewrite commit messages at the git object layer without interactive rebase"
+readme = "Readme.md"
+license = "MPL-2.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+gix = { version = "0.68", default-features = false, features = ["revision"] }
+regex = "1.11"
+thiserror = "2.0"
+
+[lib]
+name = "git_reword"
+path = "src/lib.rs"
+
+[[bin]]
+name = "git-reword"
+path = "src/main.rs"
