@@ -1,105 +1,97 @@
 mod blob_item;
 
-use crate::Result;
-use byte_unit::Byte;
-use git2::{Blob, ObjectType, Oid, Repository};
-use sorted_vec::ReverseSortedVec;
 use std::{
-    cmp::Ordering,
-    env::current_dir,
-    ffi::OsString,
-    fmt::{Debug, Display, Formatter, Write},
-    fs::read_dir,
+    collections::HashSet,
     path::{Path, PathBuf},
 };
 
+use byte_unit::{Byte, UnitType};
+use gix::{ObjectId, Repository, objs::Kind};
+
+use crate::Result;
+
+pub use blob_item::{BlobFormat, BlobItem};
+
 pub struct Cleaner {
-    repository: Repository,
-    trees: Vec<Oid>,
-    blobs: Vec<Oid>,
-    blob_size: usize,
+    repo: Repository,
+    trees: Vec<ObjectId>,
+    blobs: Vec<ObjectId>,
+    blob_size: u64,
 }
 
 impl Cleaner {
     pub fn new(root: &Path) -> Result<Self> {
-        Ok(Self { repository: Repository::open(root)?, trees: vec![], blobs: vec![], blob_size: 0 })
+        Ok(Self { repo: gix::discover(root)?, trees: vec![], blobs: vec![], blob_size: 0 })
     }
+
     pub fn clear(&mut self) {
         self.trees.clear();
         self.blobs.clear();
         self.blob_size = 0;
     }
+
     pub fn collect_info(&mut self) -> Result<()> {
         self.clear();
-        let db = self.repository.odb()?;
-        db.foreach(|c| {
-            let o = match db.read(c.to_owned()) {
-                Ok(o) => o,
-                Err(_) => {
-                    return true;
-                }
-            };
-            match o.kind() {
-                ObjectType::Any => {}
-                ObjectType::Commit => {}
-                ObjectType::Tree => self.trees.push(c.to_owned()),
-                ObjectType::Blob => {
-                    self.blobs.push(c.to_owned());
-                    self.blob_size += o.len()
-                }
-                ObjectType::Tag => {}
+        let mut seen = HashSet::new();
+        for oid in self.repo.objects.store_ref().iter()? {
+            let oid = oid?;
+            if !seen.insert(oid) {
+                continue;
             }
-            true
-        })?;
+            let header = match self.repo.find_header(oid) {
+                Ok(header) => header,
+                Err(_) => continue,
+            };
+            match header.kind() {
+                Kind::Tree => self.trees.push(oid),
+                Kind::Blob => {
+                    self.blob_size += header.size() as u64;
+                    self.blobs.push(oid);
+                }
+                Kind::Commit | Kind::Tag => {}
+            }
+        }
         Ok(())
     }
+
     pub fn largest_objects(&self, show: usize) -> Vec<BlobItem> {
-        println!("Finding {} files and {} directories take {}", self.blobs.len(), self.trees.len(), self.all_size());
-        println!("Here are {} largest objects:", show);
-        let mut sv = ReverseSortedVec::new();
-        for i in &self.blobs {
-            let blob = match self.repository.find_blob(i.to_owned()) {
-                Ok(o) => o,
+        println!("Found {} blob(s) and {} tree(s) (total blob size {})", self.blobs.len(), self.trees.len(), self.all_size());
+        println!("Top {} largest blob(s):", show);
+        let mut ranked = Vec::with_capacity(self.blobs.len());
+        for oid in &self.blobs {
+            let blob = match self.repo.find_blob(*oid) {
+                Ok(blob) => blob,
                 Err(_) => {
-                    println!("{} had broken", i);
+                    println!("{} is missing or corrupt", short_oid(*oid));
                     continue;
                 }
             };
-            let item = BlobItem { id: i.to_owned(), format: BlobFormat::from_blob(&blob), size: blob.size() };
-            sv.insert(item);
+            ranked.push(BlobItem { id: *oid, format: BlobFormat::from_bytes(&blob.data), size: blob.data.len() });
         }
-        for (index, item) in sv.iter().take(show).enumerate() {
-            println!("{:width$} | {}", index + 1, item, width = 1 + show.ilog10() as usize)
-        }
-        sv.into_vec()
+        ranked.sort_by_key(|item| std::cmp::Reverse(item.size));
+        let width = 1 + show.max(1).ilog10() as usize;
+        for (index, item) in ranked.iter().take(show).enumerate() {
+            println!("{:width$} | {item}", index + 1, width = width);
+        }        ranked.into_iter().take(show).collect()
     }
+
     pub fn all_size(&self) -> String {
-        Byte::from_bytes(self.blob_size as u128).get_appropriate_unit(false).to_string()
+        Byte::from_u64(self.blob_size).get_appropriate_unit(UnitType::Binary).to_string()
     }
 }
 
-#[derive(Debug)]
-pub struct BlobItem {
-    id: Oid,
-    size: usize,
-    format: BlobFormat,
-}
-
-#[derive(Debug)]
-pub enum BlobFormat {
-    Binary,
-    Text,
-}
-
-pub fn get_project_root() -> std::io::Result<PathBuf> {
-    let path = current_dir()?;
-    let mut path_ancestors = path.as_path().ancestors();
-
-    while let Some(p) = path_ancestors.next() {
-        let has_cargo = read_dir(p)?.into_iter().any(|p| p.unwrap().file_name() == OsString::from(".git"));
-        if has_cargo {
-            return Ok(PathBuf::from(p));
+pub fn find_git_root(start: PathBuf) -> Result<PathBuf> {
+    let mut path = start;
+    loop {
+        if path.join(".git").exists() {
+            return Ok(path);
+        }
+        if !path.pop() {
+            return Err(crate::CleanerError::msg("no `.git` directory found in ancestors"));
         }
     }
-    Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Ran out of places to find Cargo.toml"))
+}
+
+fn short_oid(oid: ObjectId) -> String {
+    oid.to_string().chars().take(8).collect()
 }

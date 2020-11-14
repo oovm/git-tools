@@ -1,5 +1,5 @@
-## Tests
+# 🧪 Tests
 
 ```bash
-wee test
+cargo test -p git-bfg
 ```

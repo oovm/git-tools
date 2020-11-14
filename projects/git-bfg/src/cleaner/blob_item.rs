@@ -1,39 +1,46 @@
-use super::*;
+use std::{
+    cmp::Ordering,
+    fmt::{Display, Formatter},
+};
 
-impl Display for BlobItem {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let size = Byte::from_bytes(self.size as u128).get_appropriate_unit(false).to_string();
-        write!(f, "{:>9} | {} | {:?}", size, self.id, self.format)
-    }
-}
+use byte_unit::{Byte, UnitType};
+use gix::ObjectId;
 
-impl Display for BlobFormat {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Binary => f.write_char('b'),
-            Self::Text => f.write_char('t'),
-        }
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlobFormat {
+    Binary,
+    Text,
 }
 
 impl BlobFormat {
-    pub fn from_blob(blob: &Blob) -> Self {
-        match blob.is_binary() {
-            true => Self::Binary,
-            false => Self::Text,
-        }
+    pub fn from_bytes(data: &[u8]) -> Self {
+        if data.contains(&0) { Self::Binary } else { Self::Text }
+    }
+}
+
+#[derive(Debug)]
+pub struct BlobItem {
+    pub id: ObjectId,
+    pub size: usize,
+    pub format: BlobFormat,
+}
+
+impl Display for BlobItem {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let size = Byte::from_u64(self.size as u64).get_appropriate_unit(UnitType::Binary);
+        write!(f, "{size:>9} | {} | {:?}", self.id, self.format)
     }
 }
 
 impl Eq for BlobItem {}
 
-impl PartialEq<Self> for BlobItem {
+impl PartialEq for BlobItem {
     fn eq(&self, other: &Self) -> bool {
         self.size.eq(&other.size)
     }
 }
 
-impl PartialOrd<Self> for BlobItem {
+impl PartialOrd for BlobItem {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.size.partial_cmp(&other.size)
     }

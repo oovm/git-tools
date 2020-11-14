@@ -1,107 +1,43 @@
-## Git big file cleaner
+# 🧹 git-bfg
 
+Scan a git object database and list the largest **blob** objects.
 
-```sh
-> bfg
-Find 328 files and 282 dir, here's 100 largest objects:
+Implemented with **[gix](https://github.com/GitoxideLabs/gitoxide)** (pure Rust, no `libgit2`).
+
+## 🚀 Build
+
+```bash
+cargo build -p git-bfg --release
+```
+
+## 📖 Usage
+
+From the repository root (walks up to find `.git`):
+
+```bash
+bfg
+```
+
+Explicit path and result limit:
+
+```bash
+bfg --repo /path/to/repo --top 50
+```
+
+## 📤 Example output
+
+```text
+Found 328 blob(s) and 282 tree(s) (total blob size 42.1 MB)
+Top 100 largest blob(s):
   1 |  15.78 MB | 623199237e74b78e4c9b94c0d07d918d22eb6e19 | Binary
   2 |  14.94 MB | c1d834f148f74215221551317327a554aed3b7f0 | Binary
   3 |   9.61 MB | 65a99bc359f6be38b3c223b6d47c376937f0883b | Binary
-  4 |   8.23 MB | ac0734a77a1448d2ddb15135a60578c94e036448 | Binary
-  5 |   6.55 MB | 0f4fdb575b27fe1ab96de0956bd9282184c30d41 | Binary
-  6 |   2.97 MB | fe30c1093bd04a3fb92664078a1821aa0a9b0709 | Binary
-  7 |   2.62 MB | 01d6f407cc8eeca92297d038f0828a4893318f12 | Binary
-  8 |   1.27 MB | a78801f02f78474d7f8529bff7e8a7b01b9817f1 | Binary
-  9 | 835.86 KB | e3f7ccd484ffdbf2e4e5ab50433978c05241a8c3 | Binary
- 10 | 419.09 KB | d7350dffa646769ac8457fe5e8ef7a3f91fcf74f | Binary
- 11 | 412.15 KB | 7c88cfa4a07b2204df684d5dcbc356f7d3d6cbcd | Text
- 12 | 410.28 KB | af9104f9c34023b96a54e4bdcf8fabc6797efd08 | Text
- 13 | 409.68 KB | 93cc31563e6111934a7398ce66f7b5ad2bb6d7c0 | Text
- 14 | 399.84 KB | 561c86170e76ff33f4b0ea9c45a4da34125bbfca | Text
- 15 | 399.42 KB | 1a8d8b66f0d8fc3f3b4ea6810901619ced864e86 | Text
- 16 | 250.53 KB | 004bbc05b2431f54bc08b93dbbed69adfbbfdfdf | Binary
- 17 | 126.69 KB | f95a8ddd7769e4b6e9e211706f0beb86e1ec0541 | Binary
- 18 | 117.05 KB | 80b01d9bf0c265e0a0169e04172c4fa9c274d94f | Binary
- 19 |  89.14 KB | b5aa94d80996b4cd20f5ac6b2692a76f168c390b | Text
- 20 |  76.09 KB | 631e792bec2e007ac7df110ed91296a416ae03ad | Binary
- 21 |  37.29 KB | 93989e5e86c1e8a5a0bb03b6ac2be539a2091d35 | Text
- 22 |  35.61 KB | ba03e0340ab45275525873eea5fda47d94b246e9 | Text
- 23 |  35.58 KB | 11b4ab0b29e770368fc732cdfec77aa1bc60cb97 | Text
- 24 |  35.18 KB | eff9f1c3936125ab5846a1541af69fef1ec176b9 | Text
- 25 |  31.11 KB | 0a6cfee89aba4b69d38fdfe77b0e23c770c472d2 | Text
- 26 |  26.40 KB | 83efec147e71582f711bf09d09cc660a8cd5b914 | Text
- 27 |  24.95 KB | f3fe7b1e8c390a6ad90df7e8a86912b02dc2b4bf | Text
- 28 |  18.95 KB | 610b853586cbeb699c93c2fe53da53a8444a070a | Text
- 29 |  14.75 KB | 593c48807da27f01f118126ed95e2716aefb3b87 | Text
- 30 |  13.39 KB | 52cbb71e921b191d795d601b3b29a7f257ac31d4 | Text
- 31 |  10.08 KB | 02fb34bc8139dfb00c53a0fcdb42a07ee9e94431 | Text
- 32 |   9.91 KB | c3fd09a1026c514584906e59ac4a117edeabf4dd | Text
- 33 |   9.54 KB | 5feb7fb625cea540412b9c9e7036cd83def57504 | Text
- 34 |   9.44 KB | 21afaa0c71aea5abe8e4fc2598f1c69d87750d52 | Text
- 35 |   9.36 KB | d346168da4544d383ee5b4cdc98fc0e1525163aa | Text
- 36 |   8.94 KB | 38daa0b7b0b15bdf9b83fd7785e12f7bab3d731d | Text
- 37 |   8.50 KB | da54d5228aecc9abf28f5b444affc180ea11b0c0 | Text
- 38 |   8.48 KB | aa2708b428fbe1099c6d33fecafc68e328920d47 | Text
- 39 |   8.41 KB | 1a94aabdbbac388757b1bbd5dd1a0b3aff68061b | Text
- 40 |   8.39 KB | 7be3556992ed3bef425fe7ebcf29f778850fc5ed | Text
- 41 |   8.28 KB | 3adf36269a5b0ab8cffe1d67eb3f89e8e8b18cf6 | Text
- 42 |   5.95 KB | 6a9a12f39cb706a2f9b0a847dd4258c0b94ce792 | Text
- 43 |   5.87 KB | e756825f6743a9f4a2348b63d286ba7fff6a5763 | Text
- 44 |   5.87 KB | 491aa398d60078a65a86cb8f2d23da2e17015ed8 | Text
- 45 |   4.96 KB | 5c475c3d609155eef482db1e9fd7407a68897d5b | Text
- 46 |   4.95 KB | 3a06ec6b8a4c5369d77981b55ef8edaacf16df24 | Text
- 47 |   4.94 KB | 9d8a5d821415dd6401e50ff5b0ec49ccdf4918cf | Text
- 48 |   4.77 KB | a7e04a45153484715113112b30fe955c6fad1ec3 | Text
- 49 |   4.67 KB | 06989beaf83e7a6757028bd4ade3dc11203fa2e8 | Text
- 50 |   4.57 KB | ecf2ff32322bd9d7327cc8833414733d003cb476 | Text
- 51 |   4.55 KB | 2e7dc25c38f6d9d9f885102303277dd111a8aba3 | Text
- 52 |   4.47 KB | 29abebe5f5bac4f28cfa8961a9df572bff17bad0 | Text
- 53 |   4.30 KB | 5fb00bdb4aa0a853c1f3746483acf60df2022c20 | Text
- 54 |   4.30 KB | 233efc55a7f2a86b5bb9a20e0aafe9bb494d2665 | Text
- 55 |   4.21 KB | 2b0897a0780c11ffc535af9aecdcc67ee9b28e38 | Text
- 56 |   4.21 KB | 33ed07b5b520c643093611d3fb734cd6b94a5c1a | Text
- 57 |   4.20 KB | 7756f89a05f42fe1d517b10ebdaec805a00987c4 | Text
- 58 |   4.20 KB | 63ef07629b3e313b16c4a541b2d698f999923766 | Text
- 59 |   4.20 KB | 7e7f24d46879d799bb60ca3a7e58dabfe62efd77 | Text
- 60 |   4.20 KB | fffcacd5e41d612b61b4f7a14d4dbc354bef04a5 | Text
- 61 |   4.17 KB | 2e9bb64dd8ab27ea1672dd1232bb3b67a11f9ddf | Text
- 62 |   4.09 KB | f3005beca26e6ca4498897e8a1e78465c6f81773 | Text
- 63 |   4.08 KB | bf41535b8102738186f5e57a33b779a8cc56b3de | Text
- 64 |   4.08 KB | bbbe0448b5588fdf62aed1992fecbf17d4df3b79 | Text
- 65 |   3.84 KB | f3ef0bf1f7058c4375e36e3d922e6d3c91d67190 | Text
- 66 |   3.76 KB | 5273fe4436efde87fcd526d2a0f139968b08d773 | Text
- 67 |   3.66 KB | 8c9809c212a7e8a7473e17e3d924d50a885898e2 | Text
- 68 |   3.60 KB | 6729a07a9c4a05eca9648f34439cad7436e28eaa | Text
- 69 |   3.57 KB | 34f7496a61517424620e5b5c60e57f0539c36324 | Text
- 70 |   3.54 KB | 1656a02194b65931f487d0ab61e89c75da657be7 | Text
- 71 |   3.41 KB | 3b29fb50ff8295d81fba736473993aa52a6d9ddc | Text
- 72 |   3.39 KB | aa2818f23a9e2581fcda9c8e74cc17aae88694ab | Text
- 73 |   3.35 KB | 738c0e5da45841bddd67675671d720b15266f7fa | Text
- 74 |   3.30 KB | ba6e030b2d0c3cb7407ee9ea154ab2f3c024d2f8 | Text
- 75 |   3.23 KB | 8641f99291a12b44bd0ed400a7a75eb6ed854506 | Text
- 76 |   3.20 KB | 29bd5d449d6b36c4f09ba190652e0f2e8fe42c7c | Text
- 77 |   3.14 KB | dc2c70001623898b024f03605c84b72fa3fc7b73 | Text
- 78 |   3.13 KB | 67a9a3578592bb81afed08d93fe0abff42881bba | Text
- 79 |   3.10 KB | 64075f4f650a86ecbeba716552961ada58f106b0 | Text
- 80 |   3.09 KB | a33e9392a76b65704b190b183f55efb44c1df274 | Text
- 81 |   2.95 KB | 462b2b6133440dd6cddbd880151e9513ed1dca98 | Text
- 82 |   2.94 KB | f168547e7c9519d474695ece4bfdd7b8c364faa2 | Text
- 83 |   2.94 KB | ef6bfb3ac7d93c1fd7f233197e3a0a94d983ae3b | Text
- 84 |   2.94 KB | 819ddb4c4e925cd5f4976d6f8d721c5e53cd1a43 | Text
- 85 |   2.93 KB | 2d4d36af84df0f36b1b4579e45478f64e1d97c4c | Text
- 86 |   2.89 KB | 25fc5fcaf9242d95327991d22d5cd2a8de5a420f | Text
- 87 |   2.85 KB | 76d7412ffd94af5f5589d80e753af127405878e0 | Text
- 88 |   2.85 KB | dd992cb1ec29cc7e4f0bad62e37a4a00e3d23c00 | Text
- 89 |   2.85 KB | e3489d44f369f44aa5cdc8c9da224a00002a3258 | Text
- 90 |   2.82 KB | cd90ffd7c25920ac3add2acd03a66ce0720698eb | Text
- 91 |   2.77 KB | 913153d25902ded941431175a39f1f78bc4f73e0 | Text
- 92 |   2.74 KB | 7554f643927538a9f8c831289f2b9937347b4c68 | Text
- 93 |   2.71 KB | bbfb644c5b24260e70b96b7c69605f9b36ee4caf | Text
- 94 |   2.70 KB | 8945e8218e9bc06532023975ad57373d8738bc72 | Text
- 95 |   2.69 KB | 12e37fde6ad8e8daacab0136f362418cae108cdf | Text
- 96 |   2.67 KB | ea536d831040770fe7d0f6c3b0c7441558630729 | Text
- 97 |   2.59 KB | d347cab560d7f6ee24f23a2993fc1d6eb95c0a90 | Text
- 98 |   2.58 KB | 0ce1c6a700326cb3537963effcb2d6ce7b9e1e8c | Text
- 99 |   2.56 KB | fde1d1a014c8acab5a58762232a03cff5dd09f36 | Text
-100 |   2.49 KB | 3620d628d569adf063ee3e37339b016b477de2e7 | Text
+```
+
+Trees, commits, and tags are counted but only blobs are ranked. Text vs binary uses the usual NUL-byte heuristic.
+
+## 🧪 Tests
+
+```bash
+cargo test -p git-bfg
 ```

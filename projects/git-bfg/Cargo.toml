@@ -1,31 +1,18 @@
 [package]
 name = "git-bfg"
-version = "0.2.0"
-authors = ["Aster <192607617@qq.com>"]
-description = "Find largest files in git repo"
-repository = "https://github.com/oovm/git-bfg-cleaner"
+version = "0.3.0"
+description = "List largest blob objects in a git repository"
 readme = "Readme.md"
-license = "MPL-2.0"
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
-clap = "3.0.13"
-git2 = "0.13.25"
-project-root = "0.2.2"
-sorted-vec = "0.7.0"
-byte-unit = "4.0.13"
-#cli-log = "2.0.0"
-
-[dev-dependencies]
-
-[features]
-default = []
+byte-unit = { workspace = true }
+clap = { workspace = true }
+gix = { workspace = true }
+thiserror = { workspace = true }
 
 [[bin]]
 name = "bfg"
 path = "src/main.rs"
-
-[package.metadata.wee]
-t = "cargo test"
-p = "cargo publish --allow-dirty"
-i = "cargo install --path ."
