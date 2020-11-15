@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-use std::fs;
-use std::path::Path;
+use std::{collections::HashMap, fs, path::Path};
 
 use gix::ObjectId;
 
@@ -37,18 +35,9 @@ pub fn parse_map_file(path: &Path) -> Result<Vec<(String, String)>> {
         }
         let re = regex::Regex::new(HASH_LINE).expect("hash regex");
         if !re.is_match(hash_line) {
-            return Err(RewordError::msg(format!(
-                "expected commit hash, got {:?}",
-                hash_line
-            )));
+            return Err(RewordError::msg(format!("expected commit hash, got {:?}", hash_line)));
         }
-        let message = block
-            .lines()
-            .skip(message_start)
-            .collect::<Vec<_>>()
-            .join("\n")
-            .trim()
-            .to_string();
+        let message = block.lines().skip(message_start).collect::<Vec<_>>().join("\n").trim().to_string();
         if message.is_empty() {
             return Err(RewordError::msg(format!("missing message for {}", hash_line)));
         }
@@ -60,28 +49,16 @@ pub fn parse_map_file(path: &Path) -> Result<Vec<(String, String)>> {
     Ok(blocks)
 }
 
-pub fn resolve_map(
-    entries: Vec<(String, String)>,
-    commits_in_range: &[ObjectId],
-) -> Result<HashMap<ObjectId, String>> {
+pub fn resolve_map(entries: Vec<(String, String)>, commits_in_range: &[ObjectId]) -> Result<HashMap<ObjectId, String>> {
     let mut resolved = HashMap::new();
     for (prefix, message) in entries {
-        let matches: Vec<ObjectId> = commits_in_range
-            .iter()
-            .filter(|oid| oid.to_string().starts_with(&prefix))
-            .copied()
-            .collect();
+        let matches: Vec<ObjectId> =
+            commits_in_range.iter().filter(|oid| oid.to_string().starts_with(&prefix)).copied().collect();
         if matches.is_empty() {
-            return Err(RewordError::msg(format!(
-                "hash prefix not found in range: {}",
-                prefix
-            )));
+            return Err(RewordError::msg(format!("hash prefix not found in range: {}", prefix)));
         }
         if matches.len() > 1 {
-            return Err(RewordError::msg(format!(
-                "ambiguous hash prefix in range: {}",
-                prefix
-            )));
+            return Err(RewordError::msg(format!("ambiguous hash prefix in range: {}", prefix)));
         }
         let oid = matches[0];
         if resolved.contains_key(&oid) {
@@ -102,11 +79,7 @@ mod tests {
         let dir = std::env::temp_dir().join("git-reword-test-map");
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("map.txt");
-        fs::write(
-            &path,
-            "abc12345\n✨ Subject line\n\nBody line.\n\n---\n\nabcdef01\n🐛 Fix `thing`\n",
-        )
-        .unwrap();
+        fs::write(&path, "abc12345\n✨ Subject line\n\nBody line.\n\n---\n\nabcdef01\n🐛 Fix `thing`\n").unwrap();
 
         let entries = parse_map_file(&path).unwrap();
         assert_eq!(entries.len(), 2);

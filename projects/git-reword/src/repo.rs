@@ -1,10 +1,14 @@
 use std::path::Path;
 
-use gix::refs::transaction::{Change, LogChange, PreviousValue, RefEdit, RefLog};
-use gix::refs::Target;
-use gix::revision::walk::Sorting;
-use gix::traverse::commit::simple::CommitTimeOrder;
-use gix::{Commit, ObjectId, Repository};
+use gix::{
+    Commit, ObjectId, Repository,
+    refs::{
+        Target,
+        transaction::{Change, LogChange, PreviousValue, RefEdit, RefLog},
+    },
+    revision::walk::Sorting,
+    traverse::commit::simple::CommitTimeOrder,
+};
 
 use crate::error::{Result, RewordError};
 
@@ -20,11 +24,7 @@ pub fn resolve_ref_tip(repo: &Repository, ref_name: &str) -> Result<ObjectId> {
     if ref_name == "HEAD" {
         return resolve_rev(repo, "HEAD");
     }
-    let name = if ref_name.starts_with("refs/") {
-        ref_name.to_string()
-    } else {
-        format!("refs/heads/{}", ref_name)
-    };
+    let name = if ref_name.starts_with("refs/") { ref_name.to_string() } else { format!("refs/heads/{}", ref_name) };
     let reference = repo.find_reference(&name)?;
     Ok(reference.id().detach())
 }
@@ -40,11 +40,8 @@ pub fn head_ref_name(repo: &Repository) -> Result<String> {
 /// Commits reachable from `tip` but not from `exclusive_base`, oldest first.
 pub fn commits_in_range(repo: &Repository, exclusive_base: ObjectId, tip: ObjectId) -> Result<Vec<ObjectId>> {
     let mut ids = Vec::new();
-    for info in repo
-        .rev_walk([tip])
-        .with_pruned([exclusive_base])
-        .sorting(Sorting::ByCommitTime(CommitTimeOrder::OldestFirst))
-        .all()?
+    for info in
+        repo.rev_walk([tip]).with_pruned([exclusive_base]).sorting(Sorting::ByCommitTime(CommitTimeOrder::OldestFirst)).all()?
     {
         ids.push(info?.id().detach());
     }
@@ -65,20 +62,10 @@ pub fn commit_message(commit: &Commit<'_>) -> String {
 }
 
 pub fn commit_subject(commit: &Commit<'_>) -> String {
-    commit_message(commit)
-        .lines()
-        .next()
-        .unwrap_or("")
-        .trim()
-        .to_string()
+    commit_message(commit).lines().next().unwrap_or("").trim().to_string()
 }
 
-pub fn write_commit(
-    repo: &Repository,
-    commit: &Commit<'_>,
-    parents: &[ObjectId],
-    message: &str,
-) -> Result<ObjectId> {
+pub fn write_commit(repo: &Repository, commit: &Commit<'_>, parents: &[ObjectId], message: &str) -> Result<ObjectId> {
     let decoded = commit.decode()?;
     let commit_obj = gix::objs::Commit {
         tree: decoded.tree(),
@@ -97,9 +84,8 @@ pub fn write_commit(
 }
 
 pub fn update_ref(repo: &Repository, ref_name: &str, new_tip: ObjectId, old_tip: ObjectId) -> Result<()> {
-    let name: gix::refs::FullName = ref_name
-        .try_into()
-        .map_err(|err: gix::validate::reference::name::Error| RewordError::msg(err.to_string()))?;
+    let name: gix::refs::FullName =
+        ref_name.try_into().map_err(|err: gix::validate::reference::name::Error| RewordError::msg(err.to_string()))?;
     repo.edit_reference(RefEdit {
         change: Change::Update {
             log: LogChange {

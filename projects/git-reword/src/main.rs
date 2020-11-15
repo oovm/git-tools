@@ -2,12 +2,12 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-use git_reword::error::{Result, RewordError};
-use git_reword::lint::{duplicate_subjects, lint_message};
-use git_reword::map::{parse_map_file, resolve_map};
-use git_reword::repo::{head_ref_name, open, resolve_ref_tip, resolve_rev};
-use git_reword::rewrite::{
-    collect_commits, dry_run_plan, export_map, full_message, move_ref, plan_rewrite, short,
+use git_reword::{
+    error::{Result, RewordError},
+    lint::{duplicate_subjects, lint_message},
+    map::{parse_map_file, resolve_map},
+    repo::{head_ref_name, open, resolve_ref_tip, resolve_rev},
+    rewrite::{collect_commits, dry_run_plan, export_map, full_message, move_ref, plan_rewrite, short},
 };
 
 #[derive(Parser)]
@@ -80,12 +80,7 @@ fn main() -> Result<()> {
     let repo = open(&cli.repo)?;
 
     match cli.command {
-        Command::Rewrite {
-            base,
-            r#ref,
-            map,
-            dry_run,
-        } => {
+        Command::Rewrite { base, r#ref, map, dry_run } => {
             let exclusive_base = resolve_rev(&repo, &base)?;
             let tip = resolve_ref_tip(&repo, &r#ref)?;
             let chain = collect_commits(&repo, exclusive_base, tip)?;
@@ -105,11 +100,7 @@ fn main() -> Result<()> {
                     println!("dry-run: no object rewrites needed");
                     return Ok(());
                 }
-                println!(
-                    "dry-run: {} commit object(s) would be rewritten on {}\n",
-                    changes.len(),
-                    r#ref
-                );
+                println!("dry-run: {} commit object(s) would be rewritten on {}\n", changes.len(), r#ref);
                 for change in &changes {
                     println!("{}  {}", short(change.old_oid), change.old_subject);
                     println!("     ->  {}", change.new_subject);
@@ -130,12 +121,7 @@ fn main() -> Result<()> {
             let ref_name = normalize_ref_name(&repo, &r#ref)?;
             move_ref(&repo, &ref_name, new_tip, old_tip)?;
 
-            println!(
-                "rewrote {} commit object(s); {} -> {}",
-                changes.len(),
-                short(old_tip),
-                short(new_tip)
-            );
+            println!("rewrote {} commit object(s); {} -> {}", changes.len(), short(old_tip), short(new_tip));
             for change in &changes {
                 println!("  {}  {}", short(change.old_oid), change.new_subject);
             }

@@ -1,12 +1,10 @@
-use std::collections::HashMap;
-use std::path::Path;
+use std::{collections::HashMap, path::Path};
 
 use gix::{ObjectId, Repository};
 
-use crate::error::{Result, RewordError};
-use crate::repo::{
-    commit_message, commit_parents, commit_subject, commits_in_range, read_commit, synthetic_oid,
-    write_commit,
+use crate::{
+    error::{Result, RewordError},
+    repo::{commit_message, commit_parents, commit_subject, commits_in_range, read_commit, synthetic_oid, write_commit},
 };
 
 #[derive(Debug, Clone)]
@@ -35,16 +33,11 @@ pub fn plan_rewrite(
     for old_oid in chain {
         let commit = read_commit(repo, old_oid)?;
         let old_parents = commit_parents(&commit);
-        let new_parents: Vec<ObjectId> = old_parents
-            .iter()
-            .map(|parent| substitution.get(parent).copied().unwrap_or(*parent))
-            .collect();
+        let new_parents: Vec<ObjectId> =
+            old_parents.iter().map(|parent| substitution.get(parent).copied().unwrap_or(*parent)).collect();
 
         let old_message = commit_message(&commit);
-        let new_message = updates
-            .get(&old_oid)
-            .cloned()
-            .unwrap_or_else(|| old_message.clone());
+        let new_message = updates.get(&old_oid).cloned().unwrap_or_else(|| old_message.clone());
         let message_changed = new_message.trim() != old_message.trim();
         let parents_changed = new_parents != old_parents;
 
@@ -70,10 +63,7 @@ pub fn plan_rewrite(
         substitution.insert(old_oid, new_oid);
     }
 
-    let new_tip = substitution
-        .get(&tip)
-        .copied()
-        .ok_or_else(|| RewordError::msg("failed to resolve new tip"))?;
+    let new_tip = substitution.get(&tip).copied().ok_or_else(|| RewordError::msg("failed to resolve new tip"))?;
     Ok((changes, new_tip))
 }
 
@@ -90,16 +80,11 @@ pub fn dry_run_plan(
     for old_oid in chain {
         let commit = read_commit(repo, old_oid)?;
         let old_parents = commit_parents(&commit);
-        let new_parents: Vec<ObjectId> = old_parents
-            .iter()
-            .map(|parent| substitution.get(parent).copied().unwrap_or(*parent))
-            .collect();
+        let new_parents: Vec<ObjectId> =
+            old_parents.iter().map(|parent| substitution.get(parent).copied().unwrap_or(*parent)).collect();
 
         let old_message = commit_message(&commit);
-        let new_message = updates
-            .get(&old_oid)
-            .cloned()
-            .unwrap_or_else(|| old_message.clone());
+        let new_message = updates.get(&old_oid).cloned().unwrap_or_else(|| old_message.clone());
         let message_changed = new_message.trim() != old_message.trim();
         let parents_changed = new_parents != old_parents;
 
@@ -114,7 +99,8 @@ pub fn dry_run_plan(
                 message_changed,
             });
             substitution.insert(old_oid, synthetic_oid(old_oid));
-        } else {
+        }
+        else {
             substitution.insert(old_oid, old_oid);
         }
     }
@@ -128,10 +114,7 @@ pub fn full_message(repo: &Repository, oid: ObjectId) -> Result<String> {
 pub fn export_map(repo: &Repository, exclusive_base: ObjectId, tip: ObjectId, path: &Path) -> Result<()> {
     let chain = commits_in_range(repo, exclusive_base, tip)?;
     let mut out = String::new();
-    out.push_str(&format!(
-        "# Hash-keyed reword map ({} commit(s)). Delete unchanged blocks before rewrite.\n\n",
-        chain.len()
-    ));
+    out.push_str(&format!("# Hash-keyed reword map ({} commit(s)). Delete unchanged blocks before rewrite.\n\n", chain.len()));
     for oid in chain {
         let message = full_message(repo, oid)?;
         out.push_str(&format!("{}\n{}\n\n---\n\n", oid, message));

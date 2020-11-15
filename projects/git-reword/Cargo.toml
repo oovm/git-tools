@@ -1,17 +1,17 @@
 [package]
 name = "git-reword"
 version = "0.1.0"
-authors = ["Aster <192607617@qq.com>"]
 description = "Rewrite commit messages at the git object layer without interactive rebase"
 readme = "Readme.md"
-license = "MPL-2.0"
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
-clap = { version = "4.5", features = ["derive"] }
-gix = { version = "0.68", default-features = false, features = ["revision"] }
-regex = "1.11"
-thiserror = "2.0"
+clap = { workspace = true }
+gix = { workspace = true }
+regex = { workspace = true }
+thiserror = { workspace = true }
 
 [lib]
 name = "git_reword"
