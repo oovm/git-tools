@@ -1,3 +1,5 @@
+//! 遍历对象库、统计 blob 并输出大小排名。
+
 mod blob_item;
 
 use std::{
@@ -12,6 +14,7 @@ use crate::Result;
 
 pub use blob_item::{BlobFormat, BlobItem};
 
+/// 扫描 git 对象库并统计 blob / tree。
 pub struct Cleaner {
     repo: Repository,
     trees: Vec<ObjectId>,
@@ -20,16 +23,19 @@ pub struct Cleaner {
 }
 
 impl Cleaner {
+    /// 打开指定路径下的 git 仓库。
     pub fn new(root: &Path) -> Result<Self> {
         Ok(Self { repo: gix::discover(root)?, trees: vec![], blobs: vec![], blob_size: 0 })
     }
 
+    /// 清空已收集的统计信息。
     pub fn clear(&mut self) {
         self.trees.clear();
         self.blobs.clear();
         self.blob_size = 0;
     }
 
+    /// 遍历对象库，收集 blob 与 tree 的 OID 及 blob 总大小。
     pub fn collect_info(&mut self) -> Result<()> {
         self.clear();
         let mut seen = HashSet::new();
@@ -54,6 +60,7 @@ impl Cleaner {
         Ok(())
     }
 
+    /// 打印并返回按大小降序排列的前 `show` 个 blob。
     pub fn largest_objects(&self, show: usize) -> Vec<BlobItem> {
         println!("Found {} blob(s) and {} tree(s) (total blob size {})", self.blobs.len(), self.trees.len(), self.all_size());
         println!("Top {} largest blob(s):", show);
@@ -72,14 +79,17 @@ impl Cleaner {
         let width = 1 + show.max(1).ilog10() as usize;
         for (index, item) in ranked.iter().take(show).enumerate() {
             println!("{:width$} | {item}", index + 1, width = width);
-        }        ranked.into_iter().take(show).collect()
+        }
+        ranked.into_iter().take(show).collect()
     }
 
+    /// 返回已收集 blob 的总大小（人类可读字符串）。
     pub fn all_size(&self) -> String {
         Byte::from_u64(self.blob_size).get_appropriate_unit(UnitType::Binary).to_string()
     }
 }
 
+/// 从 `start` 向上查找包含 `.git` 的目录。
 pub fn find_git_root(start: PathBuf) -> Result<PathBuf> {
     let mut path = start;
     loop {
@@ -92,6 +102,7 @@ pub fn find_git_root(start: PathBuf) -> Result<PathBuf> {
     }
 }
 
+/// 将 OID 格式化为 8 位十六进制前缀。
 fn short_oid(oid: ObjectId) -> String {
     oid.to_string().chars().take(8).collect()
 }
