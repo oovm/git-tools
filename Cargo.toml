@@ -21,6 +21,12 @@ thiserror = "2.0"
 regex = "1.11"
 byte-unit = "5.1"
 
+[workspace.lints.rust]
+missing_docs = "deny"
+
+[workspace.lints.rustdoc]
+missing_crate_level_docs = "deny"
+
 [profile.release]
 lto = true
 panic = "abort"
