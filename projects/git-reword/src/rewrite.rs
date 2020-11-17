@@ -1,3 +1,5 @@
+//! 对象层改写规划：按范围自旧向新 relink 父链并写入新 commit。
+
 use std::{collections::HashMap, path::Path};
 
 use gix::{ObjectId, Repository};
@@ -7,15 +9,24 @@ use crate::{
     repo::{commit_message, commit_parents, commit_subject, commits_in_range, read_commit, synthetic_oid, write_commit},
 };
 
+/// 单次计划中的 commit 变更摘要。
 #[derive(Debug, Clone)]
 pub struct PlannedChange {
+    /// 原 commit OID。
     pub old_oid: ObjectId,
+    /// 改写前的 subject。
     pub old_subject: String,
+    /// 改写后的 subject。
     pub new_subject: String,
+    /// 是否因祖先被改写而仅 relink 父指针。
     pub parents_relinked: bool,
+    /// message 是否与原文不同。
     pub message_changed: bool,
 }
 
+/// 按 `updates` 映射在 `exclusive_base..tip` 上规划并执行对象改写，返回变更列表与新 tip。
+///
+/// 自旧向新遍历：若 message 或父 OID 变化则写新 commit，否则复用原 OID。
 pub fn plan_rewrite(
     repo: &Repository,
     exclusive_base: ObjectId,
@@ -27,6 +38,7 @@ pub fn plan_rewrite(
         return Err(RewordError::msg("no commits in rewrite range"));
     }
 
+    // old_oid -> new_oid，供后续 commit relink 父链
     let mut substitution: HashMap<ObjectId, ObjectId> = HashMap::new();
     let mut changes = Vec::new();
 
@@ -67,6 +79,7 @@ pub fn plan_rewrite(
     Ok((changes, new_tip))
 }
 
+/// 不写入对象库，仅规划哪些 commit 会被改写（dry-run）。
 pub fn dry_run_plan(
     repo: &Repository,
     exclusive_base: ObjectId,
@@ -107,10 +120,12 @@ pub fn dry_run_plan(
     Ok(changes)
 }
 
+/// 读取指定 commit 的完整 message。
 pub fn full_message(repo: &Repository, oid: ObjectId) -> Result<String> {
     Ok(commit_message(&read_commit(repo, oid)?))
 }
 
+/// 导出 `exclusive_base..tip` 范围内各 commit 的 hash 映射模板文件。
 pub fn export_map(repo: &Repository, exclusive_base: ObjectId, tip: ObjectId, path: &Path) -> Result<()> {
     let chain = commits_in_range(repo, exclusive_base, tip)?;
     let mut out = String::new();
@@ -123,4 +138,9 @@ pub fn export_map(repo: &Repository, exclusive_base: ObjectId, tip: ObjectId, pa
     Ok(())
 }
 
-pub use crate::repo::{commits_in_range as collect_commits, short, update_ref as move_ref};
+/// 收集 `exclusive_base..tip` 范围内的 commit OID（自旧到新）。
+pub use crate::repo::commits_in_range as collect_commits;
+/// 格式化 OID 为 8 位前缀。
+pub use crate::repo::short;
+/// 更新分支引用 tip。
+pub use crate::repo::update_ref as move_ref;

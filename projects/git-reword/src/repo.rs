@@ -1,3 +1,5 @@
+//! 基于 gix 的仓库打开、revision 解析与 commit 对象读写。
+
 use std::path::Path;
 
 use gix::{
@@ -12,14 +14,17 @@ use gix::{
 
 use crate::error::{Result, RewordError};
 
+/// 从路径发现 git 工作区并打开仓库。
 pub fn open(path: &Path) -> Result<Repository> {
     gix::discover(path).map_err(RewordError::from)
 }
 
+/// 将 revision 字符串解析为对象 OID（如 `HEAD`、`34e1e665^`）。
 pub fn resolve_rev(repo: &Repository, rev: &str) -> Result<ObjectId> {
     Ok(repo.rev_parse_single(rev)?.detach())
 }
 
+/// 解析分支或符号引用名，得到其 tip 的 OID。
 pub fn resolve_ref_tip(repo: &Repository, ref_name: &str) -> Result<ObjectId> {
     if ref_name == "HEAD" {
         return resolve_rev(repo, "HEAD");
@@ -29,6 +34,7 @@ pub fn resolve_ref_tip(repo: &Repository, ref_name: &str) -> Result<ObjectId> {
     Ok(reference.id().detach())
 }
 
+/// 返回当前 HEAD 指向的引用全名（ detached HEAD 时报错）。
 pub fn head_ref_name(repo: &Repository) -> Result<String> {
     let head = repo.head()?;
     if head.is_detached() {
@@ -37,7 +43,7 @@ pub fn head_ref_name(repo: &Repository) -> Result<String> {
     Ok(head.name().as_bstr().to_string())
 }
 
-/// Commits reachable from `tip` but not from `exclusive_base`, oldest first.
+/// 收集 `exclusive_base..tip` 范围内的 commit OID，按 commit 时间从旧到新。
 pub fn commits_in_range(repo: &Repository, exclusive_base: ObjectId, tip: ObjectId) -> Result<Vec<ObjectId>> {
     let mut ids = Vec::new();
     for info in
@@ -48,23 +54,28 @@ pub fn commits_in_range(repo: &Repository, exclusive_base: ObjectId, tip: Object
     Ok(ids)
 }
 
+/// 读取并解析 commit 对象。
 pub fn read_commit(repo: &Repository, oid: ObjectId) -> Result<Commit<'_>> {
     let object = repo.find_object(oid)?;
     Ok(object.into_commit())
 }
 
+/// 返回 commit 的全部父 commit OID。
 pub fn commit_parents(commit: &Commit<'_>) -> Vec<ObjectId> {
     commit.parent_ids().map(|id| id.detach()).collect()
 }
 
+/// 返回 commit 的完整 message 文本（含 subject 与 body）。
 pub fn commit_message(commit: &Commit<'_>) -> String {
     commit.message_raw_sloppy().to_string().trim_end().to_string()
 }
 
+/// 返回 commit message 的第一行 subject。
 pub fn commit_subject(commit: &Commit<'_>) -> String {
     commit_message(commit).lines().next().unwrap_or("").trim().to_string()
 }
 
+/// 写入新 commit 对象：复用 tree/author/committer，替换 parents 与 message。
 pub fn write_commit(repo: &Repository, commit: &Commit<'_>, parents: &[ObjectId], message: &str) -> Result<ObjectId> {
     let decoded = commit.decode()?;
     let commit_obj = gix::objs::Commit {
@@ -83,6 +94,7 @@ pub fn write_commit(repo: &Repository, commit: &Commit<'_>, parents: &[ObjectId]
     Ok(repo.write_object(&commit_obj)?.detach())
 }
 
+/// 将引用 `ref_name` 的 tip 从 `old_tip` 更新为 `new_tip`（带 reflog）。
 pub fn update_ref(repo: &Repository, ref_name: &str, new_tip: ObjectId, old_tip: ObjectId) -> Result<()> {
     let name: gix::refs::FullName =
         ref_name.try_into().map_err(|err: gix::validate::reference::name::Error| RewordError::msg(err.to_string()))?;
@@ -102,10 +114,12 @@ pub fn update_ref(repo: &Repository, ref_name: &str, new_tip: ObjectId, old_tip:
     Ok(())
 }
 
+/// 将 OID 格式化为 8 位十六进制前缀（用于日志与 lint 标签）。
 pub fn short(oid: ObjectId) -> String {
     oid.to_string().chars().take(8).collect()
 }
 
+/// dry-run 时生成与真实 OID 不同的占位 OID，避免误写对象库。
 pub fn synthetic_oid(seed: ObjectId) -> ObjectId {
     let mut bytes = seed.as_bytes().to_vec();
     bytes[19] ^= 0xff;

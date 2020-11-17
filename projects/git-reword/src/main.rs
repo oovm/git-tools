@@ -1,3 +1,5 @@
+//! `git-reword` 命令行入口：导出映射、lint、对象层改写。
+
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
@@ -10,10 +12,11 @@ use git_reword::{
     rewrite::{collect_commits, dry_run_plan, export_map, full_message, move_ref, plan_rewrite, short},
 };
 
+/// 全局参数与子命令。
 #[derive(Parser)]
 #[command(name = "git-reword", about = "Rewrite commit messages at the git object layer (pure Rust / gix)")]
 struct Cli {
-    /// Path to git repository (defaults to current directory)
+    /// git 仓库路径（默认为当前目录）
     #[arg(long, default_value = ".")]
     repo: PathBuf,
 
@@ -21,31 +24,32 @@ struct Cli {
     command: Command,
 }
 
+/// 子命令：改写、lint 或导出映射模板。
 #[derive(Subcommand)]
 enum Command {
-    /// Rewrite mapped commits and update a branch ref (no interactive rebase)
+    /// 按映射改写 commit 并更新分支 ref（无 interactive rebase）
     Rewrite {
-        /// Exclusive base: commits reachable from tip but not from this oid are rewritten
+        /// exclusive base：从 tip 可达但不在该 OID 祖先链上的 commit 会被改写
         #[arg(long)]
         base: String,
-        /// Branch ref to update, e.g. refs/heads/dev or dev
+        /// 要更新的分支 ref，如 `refs/heads/dev` 或 `dev`
         #[arg(long, default_value = "HEAD")]
         r#ref: String,
-        /// Hash-keyed message map file
+        /// hash 前缀 → message 映射文件
         #[arg(long)]
         map: PathBuf,
-        /// Print planned changes without writing objects or updating refs
+        /// 仅打印计划，不写对象、不更新 ref
         #[arg(long)]
         dry_run: bool,
     },
-    /// Lint commit messages in base..ref range
+    /// lint `base..ref` 范围内现有 commit message
     LintLog {
         #[arg(long)]
         base: String,
         #[arg(long, default_value = "HEAD")]
         r#ref: String,
     },
-    /// Lint messages in a map file against a commit range
+    /// lint 映射文件中的 message 是否落在指定范围内
     LintMap {
         #[arg(long)]
         base: String,
@@ -54,7 +58,7 @@ enum Command {
         #[arg(long)]
         map: PathBuf,
     },
-    /// Export hash-keyed map template for base..ref
+    /// 导出 `base..ref` 的 hash 映射模板
     Export {
         #[arg(long)]
         base: String,
@@ -65,6 +69,7 @@ enum Command {
     },
 }
 
+/// 将 `HEAD` / 短分支名规范化为完整 ref 名。
 fn normalize_ref_name(repo: &gix::Repository, ref_name: &str) -> Result<String> {
     if ref_name == "HEAD" {
         return head_ref_name(repo);

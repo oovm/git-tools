@@ -1,15 +1,21 @@
+//! hash 前缀映射文件：解析与在 commit 范围内解析 OID。
+
 use std::{collections::HashMap, fs, path::Path};
 
 use gix::ObjectId;
 
 use crate::error::{Result, RewordError};
 
+/// 映射块首行 hash 的正则（8–40 位十六进制）。
 const HASH_LINE: &str = r"^[0-9a-fA-F]{8,40}$";
 
-/// Parse hash-keyed message blocks separated by a line containing only `---`.
+/// 解析 hash 映射文件：块之间用仅含 `---` 的一行分隔。
+///
+/// 每个块第一行非空、非 `#` 开头的内容为 commit hash 前缀，其余为完整 message。
 pub fn parse_map_file(path: &Path) -> Result<Vec<(String, String)>> {
     let text = fs::read_to_string(path)?;
     let mut blocks = Vec::new();
+    // 统一换行符，按分隔符切块
     for block in text.replace("\r\n", "\n").split("\n---\n") {
         let block = block.trim();
         if block.is_empty() {
@@ -49,6 +55,9 @@ pub fn parse_map_file(path: &Path) -> Result<Vec<(String, String)>> {
     Ok(blocks)
 }
 
+/// 将 hash 前缀条目解析为范围内的唯一 `ObjectId` → message 映射。
+///
+/// 前缀必须在 `commits_in_range` 中唯一匹配，否则报错。
 pub fn resolve_map(entries: Vec<(String, String)>, commits_in_range: &[ObjectId]) -> Result<HashMap<ObjectId, String>> {
     let mut resolved = HashMap::new();
     for (prefix, message) in entries {

@@ -1,18 +1,22 @@
 use regex::Regex;
 
+/// 单条 lint 违规记录。
 #[derive(Debug, Clone)]
 pub struct LintIssue {
+    /// 关联标签（通常为 commit hash 前缀）。
     pub label: String,
+    /// 违规说明。
     pub detail: String,
 }
 
+/// 按 leetcode.v commit 规范校验完整 message。
 pub fn lint_message(raw: &str, label: &str) -> Vec<LintIssue> {
     let mut issues = Vec::new();
     let lines: Vec<&str> = raw.lines().collect();
     let subject = lines.first().map(|s| s.trim()).unwrap_or("");
     let body_joined = if lines.len() > 1 { lines[1..].join("\n") } else { String::new() };
     let body = body_joined.trim();
-    let full = if body.is_empty() { subject.to_string() } else { format!("{}\n{}", subject, body) };
+    let full = if body.is_empty() { subject.to_string() } else { format!("{subject}\n{body}") };
 
     if subject.is_empty() {
         issues.push(LintIssue { label: label.to_string(), detail: "subject is empty".into() });
@@ -20,6 +24,7 @@ pub fn lint_message(raw: &str, label: &str) -> Vec<LintIssue> {
     }
 
     let emoji = Regex::new(r"^\p{Extended_Pictographic}").expect("emoji regex");
+    // subject 须以 gitmoji 开头
     if !emoji.is_match(subject) {
         issues.push(LintIssue { label: label.to_string(), detail: "subject must start with a gitmoji character".into() });
     }
@@ -44,6 +49,7 @@ pub fn lint_message(raw: &str, label: &str) -> Vec<LintIssue> {
     issues
 }
 
+/// 检测 subject 重复项，返回可读描述行。
 pub fn duplicate_subjects(subjects: &[(String, String)]) -> Vec<String> {
     let mut counts: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
     for (_, subject) in subjects {
@@ -52,6 +58,6 @@ pub fn duplicate_subjects(subjects: &[(String, String)]) -> Vec<String> {
     counts
         .into_iter()
         .filter(|(_, count)| *count > 1)
-        .map(|(subject, count)| format!("duplicate subject ({}x): {}", count, subject))
+        .map(|(subject, count)| format!("duplicate subject ({count}x): {subject}"))
         .collect()
 }
