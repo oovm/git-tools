@@ -1,13 +1,13 @@
 # 🛠️ git-tools
 
-Rust workspace of git utilities built on **[gix](https://github.com/GitoxideLabs/gitoxide)** (pure Rust, no libgit2).
+Rust git utilities built on **[gix](https://github.com/GitoxideLabs/gitoxide)** (pure Rust, no libgit2).
 
 ## 🧰 Tools
 
-| Crate                                         | Binary       | Purpose                                                                |
-|-----------------------------------------------|--------------|------------------------------------------------------------------------|
-| [`git-bfg`](projects/git-bfg/Readme.md)       | `bfg`        | Scan the object database and list the largest blobs                    |
-| [`git-reword`](projects/git-reword/Readme.md) | `git-reword` | Rewrite commit messages at the object layer without interactive rebase |
+| Binary | Library module | Purpose |
+| --- | --- | --- |
+| `bfg` | `object` | Scan the object database and list the largest blobs |
+| `git-reword` | `commit` | Rewrite commit messages at the object layer without interactive rebase |
 
 ## 🚀 Quick start
 
@@ -18,28 +18,32 @@ cargo build --release
 cargo test
 ```
 
-Install a single binary:
+Install binaries from this crate:
 
 ```bash
-cargo install --path projects/git-bfg
-cargo install --path projects/git-reword
+cargo install --path . --bin bfg
+cargo install --path . --bin git-reword
 ```
 
-## 📦 Workspace layout
+## 📦 Layout
 
 ```text
 git-tools/
-  rust-toolchain.toml   # nightly toolchain pin
-  rustfmt.toml
-  projects/
-    git-bfg/            # blob size scanner
-    git-reword/         # hash-keyed commit message rewrite
+  src/
+    repo.rs       # repository discovery and OID helpers
+    object/       # ODB blob inventory
+    commit/       # commit history and message rewrite
+  bin/
+    bfg.rs
+    git-reword.rs
+  documentation/
+    bfg.md
+    reword.md
 ```
 
 ## 🧪 CI
 
-GitHub Actions runs `cargo fmt --check`, `cargo build --release`, and `cargo test --release` on Ubuntu, macOS, and
-Windows.
+GitHub Actions runs `cargo fmt --check`, `cargo build --release`, and `cargo test --release` on Ubuntu, macOS, and Windows.
 
 ## 📄 License
 
