@@ -4,9 +4,13 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-use git_tools::commit::{
-    Result, RewordError, collect_commits, dry_run_plan, duplicate_subjects, export_map, full_message, head_ref_name,
-    lint_message, move_ref, open, parse_map_file, plan_rewrite, resolve_map, resolve_ref_tip, resolve_rev, short,
+use git_tools::{
+    Result,
+    commit::{
+        collect_commits, dry_run_plan, duplicate_subjects, export_map, full_message, head_ref_name, lint_message, move_ref,
+        open, parse_map_file, plan_rewrite, resolve_map, resolve_ref_tip, resolve_rev, short,
+    },
+    validation,
 };
 
 /// 全局参数与子命令。
@@ -117,7 +121,7 @@ fn main() -> Result<()> {
             let old_tip = tip;
             let (changes, new_tip) = plan_rewrite(&repo, exclusive_base, tip, &updates)?;
             if changes.is_empty() {
-                return Err(RewordError::msg("no object rewrites performed"));
+                return Err(validation("no object rewrites performed"));
             }
 
             let ref_name = normalize_ref_name(&repo, &r#ref)?;

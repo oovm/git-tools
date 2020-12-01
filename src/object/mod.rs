@@ -1,9 +1,8 @@
 //! 对象库遍历与 blob 统计。
 
 mod blob;
-mod error;
 mod inventory;
 
+pub use crate::error::{Error, Result};
 pub use blob::{BlobFormat, BlobItem};
-pub use error::{InventoryError, Result};
 pub use inventory::Cleaner;

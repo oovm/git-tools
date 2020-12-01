@@ -3,7 +3,7 @@ name = "git-tools"
 version = "0.4.0"
 authors = ["Aster <192607617@qq.com>"]
 description = "Git utilities built on gix: blob scanner and commit message reword"
-readme = "Readme.md"
+readme = "readme.md"
 license = "MPL-2.0"
 edition = "2021"
 
@@ -23,8 +23,8 @@ path = "bin/git-reword.rs"
 byte-unit = "5.1"
 clap = { version = "4.5", features = ["derive"] }
 gix = { version = "0.68", default-features = false, features = ["revision", "max-performance-safe"] }
+gix-error = "0.3.2"
 regex = "1.11"
-thiserror = "2.0"
 
 [lints.rust]
 missing_docs = "deny"

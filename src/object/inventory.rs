@@ -5,7 +5,7 @@ use std::{collections::HashSet, path::Path};
 use byte_unit::{Byte, UnitType};
 use gix::{ObjectId, Repository, objs::Kind};
 
-use super::error::Result;
+use crate::error::{Result, ResultExt, message};
 
 use super::blob::{BlobFormat, BlobItem};
 
@@ -20,7 +20,8 @@ pub struct Cleaner {
 impl Cleaner {
     /// 打开指定路径下的 git 仓库。
     pub fn new(root: &Path) -> Result<Self> {
-        Ok(Self { repo: gix::discover(root)?, trees: vec![], blobs: vec![], blob_size: 0 })
+        let repo = gix::discover(root).or_raise(|| message!("discover git repository"))?;
+        Ok(Self { repo, trees: vec![], blobs: vec![], blob_size: 0 })
     }
 
     /// 清空已收集的统计信息。
@@ -34,8 +35,8 @@ impl Cleaner {
     pub fn collect_info(&mut self) -> Result<()> {
         self.clear();
         let mut seen = HashSet::new();
-        for oid in self.repo.objects.store_ref().iter()? {
-            let oid = oid?;
+        for oid in self.repo.objects.store_ref().iter().or_raise(|| message!("iterate object database"))? {
+            let oid = oid.or_raise(|| message!("read object id from odb iterator"))?;
             if !seen.insert(oid) {
                 continue;
             }
@@ -83,8 +84,6 @@ impl Cleaner {
         Byte::from_u64(self.blob_size).get_appropriate_unit(UnitType::Binary).to_string()
     }
 }
-
-/// 从 `start` 向上查找包含 `.git` 的目录。
 
 /// 将 OID 格式化为 8 位十六进制前缀。
 fn short_oid(oid: ObjectId) -> String {

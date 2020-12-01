@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use gix::ObjectId;
 
-use crate::object::{InventoryError, Result};
+use crate::error::{Result, validation};
 
 /// 从 `start` 向上查找包含 `.git` 的工作区根目录。
 pub fn find_git_root(start: PathBuf) -> Result<PathBuf> {
@@ -14,7 +14,7 @@ pub fn find_git_root(start: PathBuf) -> Result<PathBuf> {
             return Ok(path);
         }
         if !path.pop() {
-            return Err(InventoryError::msg("no `.git` directory found in ancestors"));
+            return Err(validation("no `.git` directory found in ancestors"));
         }
     }
 }

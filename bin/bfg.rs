@@ -3,10 +3,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use git_tools::{
-    object::{Cleaner, Result},
-    repo::find_git_root,
-};
+use git_tools::{Result, ResultExt, message, object::Cleaner, repo::find_git_root};
 
 /// 命令行参数。
 #[derive(Parser)]
@@ -25,7 +22,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     let root = match cli.repo {
         Some(path) => path,
-        None => find_git_root(std::env::current_dir()?)?,
+        None => find_git_root(std::env::current_dir().or_raise(|| message!("read current directory"))?)?,
     };
     let mut cleaner = Cleaner::new(&root)?;
     cleaner.collect_info()?;

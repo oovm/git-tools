@@ -1,4 +1,4 @@
-//! 基于 gix 的仓库打开、revision 解析与 commit 对象读写。
+//! commit 对象读写、历史范围遍历与引用更新。
 
 use std::path::Path;
 
@@ -12,53 +12,55 @@ use gix::{
     traverse::commit::simple::CommitTimeOrder,
 };
 
+use crate::error::{Result, ResultExt, message, validation};
+
 /// 从路径发现 git 工作区并打开仓库。
-pub fn open(path: &Path) -> crate::commit::error::Result<Repository> {
-    gix::discover(path).map_err(crate::commit::error::RewordError::from)
+pub fn open(path: &Path) -> Result<Repository> {
+    Ok(gix::discover(path).or_raise(|| message!("discover git repository"))?)
 }
 
 /// 将 revision 字符串解析为对象 OID（如 `HEAD`、`34e1e665^`）。
-pub fn resolve_rev(repo: &Repository, rev: &str) -> crate::commit::error::Result<ObjectId> {
-    Ok(repo.rev_parse_single(rev)?.detach())
+pub fn resolve_rev(repo: &Repository, rev: &str) -> Result<ObjectId> {
+    Ok(repo.rev_parse_single(rev).or_raise(|| message!("resolve revision"))?.detach())
 }
 
 /// 解析分支或符号引用名，得到其 tip 的 OID。
-pub fn resolve_ref_tip(repo: &Repository, ref_name: &str) -> crate::commit::error::Result<ObjectId> {
+pub fn resolve_ref_tip(repo: &Repository, ref_name: &str) -> Result<ObjectId> {
     if ref_name == "HEAD" {
         return resolve_rev(repo, "HEAD");
     }
     let name = if ref_name.starts_with("refs/") { ref_name.to_string() } else { format!("refs/heads/{}", ref_name) };
-    let reference = repo.find_reference(&name)?;
+    let reference = repo.find_reference(&name).or_raise(|| message!("find git reference"))?;
     Ok(reference.id().detach())
 }
 
 /// 返回当前 HEAD 指向的引用全名（ detached HEAD 时报错）。
-pub fn head_ref_name(repo: &Repository) -> crate::commit::error::Result<String> {
-    let head = repo.head()?;
+pub fn head_ref_name(repo: &Repository) -> Result<String> {
+    let head = repo.head().or_raise(|| message!("read HEAD reference"))?;
     if head.is_detached() {
-        return Err(crate::commit::error::RewordError::msg("HEAD is detached; pass an explicit --ref"));
+        return Err(validation("HEAD is detached; pass an explicit --ref"));
     }
     Ok(head.name().as_bstr().to_string())
 }
 
 /// 收集 `exclusive_base..tip` 范围内的 commit OID，按 commit 时间从旧到新。
-pub fn commits_in_range(
-    repo: &Repository,
-    exclusive_base: ObjectId,
-    tip: ObjectId,
-) -> crate::commit::error::Result<Vec<ObjectId>> {
+pub fn commits_in_range(repo: &Repository, exclusive_base: ObjectId, tip: ObjectId) -> Result<Vec<ObjectId>> {
     let mut ids = Vec::new();
-    for info in
-        repo.rev_walk([tip]).with_pruned([exclusive_base]).sorting(Sorting::ByCommitTime(CommitTimeOrder::OldestFirst)).all()?
+    for info in repo
+        .rev_walk([tip])
+        .with_pruned([exclusive_base])
+        .sorting(Sorting::ByCommitTime(CommitTimeOrder::OldestFirst))
+        .all()
+        .or_raise(|| message!("configure revision walk"))?
     {
-        ids.push(info?.id().detach());
+        ids.push(info.or_raise(|| message!("walk commit history"))?.id().detach());
     }
     Ok(ids)
 }
 
 /// 读取并解析 commit 对象。
-pub fn read_commit(repo: &Repository, oid: ObjectId) -> crate::commit::error::Result<Commit<'_>> {
-    let object = repo.find_object(oid)?;
+pub fn read_commit(repo: &Repository, oid: ObjectId) -> Result<Commit<'_>> {
+    let object = repo.find_object(oid).or_raise(|| message!("find commit object"))?;
     Ok(object.into_commit())
 }
 
@@ -78,13 +80,8 @@ pub fn commit_subject(commit: &Commit<'_>) -> String {
 }
 
 /// 写入新 commit 对象：复用 tree/author/committer，替换 parents 与 message。
-pub fn write_commit(
-    repo: &Repository,
-    commit: &Commit<'_>,
-    parents: &[ObjectId],
-    message: &str,
-) -> crate::commit::error::Result<ObjectId> {
-    let decoded = commit.decode()?;
+pub fn write_commit(repo: &Repository, commit: &Commit<'_>, parents: &[ObjectId], message: &str) -> Result<ObjectId> {
+    let decoded = commit.decode().or_raise(|| message!("decode commit object"))?;
     let commit_obj = gix::objs::Commit {
         tree: decoded.tree(),
         parents: parents.iter().copied().collect(),
@@ -98,14 +95,13 @@ pub fn write_commit(
             .map(|(key, value)| ((*key).to_owned(), value.as_ref().to_owned()))
             .collect(),
     };
-    Ok(repo.write_object(&commit_obj)?.detach())
+    Ok(repo.write_object(&commit_obj).or_raise(|| message!("write commit object"))?.detach())
 }
 
 /// 将引用 `ref_name` 的 tip 从 `old_tip` 更新为 `new_tip`（带 reflog）。
-pub fn update_ref(repo: &Repository, ref_name: &str, new_tip: ObjectId, old_tip: ObjectId) -> crate::commit::error::Result<()> {
-    let name: gix::refs::FullName = ref_name
-        .try_into()
-        .map_err(|err: gix::validate::reference::name::Error| crate::commit::error::RewordError::msg(err.to_string()))?;
+pub fn update_ref(repo: &Repository, ref_name: &str, new_tip: ObjectId, old_tip: ObjectId) -> Result<()> {
+    let name: gix::refs::FullName =
+        ref_name.try_into().map_err(|err: gix::validate::reference::name::Error| validation(err.to_string()))?;
     repo.edit_reference(RefEdit {
         change: Change::Update {
             log: LogChange {
@@ -118,7 +114,8 @@ pub fn update_ref(repo: &Repository, ref_name: &str, new_tip: ObjectId, old_tip:
         },
         name,
         deref: false,
-    })?;
+    })
+    .or_raise(|| message!("update git reference"))?;
     Ok(())
 }
 

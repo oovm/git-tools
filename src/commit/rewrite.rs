@@ -4,9 +4,10 @@ use std::{collections::HashMap, path::Path};
 
 use gix::{ObjectId, Repository};
 
-use super::{
-    error::{Result, RewordError},
-    history::{commit_message, commit_parents, commit_subject, commits_in_range, read_commit, synthetic_oid, write_commit},
+use crate::error::{OptionExt, Result, ResultExt, message, validation};
+
+use super::history::{
+    commit_message, commit_parents, commit_subject, commits_in_range, read_commit, synthetic_oid, write_commit,
 };
 
 /// 单次计划中的 commit 变更摘要。
@@ -35,10 +36,9 @@ pub fn plan_rewrite(
 ) -> Result<(Vec<PlannedChange>, ObjectId)> {
     let chain = commits_in_range(repo, exclusive_base, tip)?;
     if chain.is_empty() {
-        return Err(RewordError::msg("no commits in rewrite range"));
+        return Err(validation("no commits in rewrite range"));
     }
 
-    // old_oid -> new_oid，供后续 commit relink 父链
     let mut substitution: HashMap<ObjectId, ObjectId> = HashMap::new();
     let mut changes = Vec::new();
 
@@ -75,7 +75,7 @@ pub fn plan_rewrite(
         substitution.insert(old_oid, new_oid);
     }
 
-    let new_tip = substitution.get(&tip).copied().ok_or_else(|| RewordError::msg("failed to resolve new tip"))?;
+    let new_tip = substitution.get(&tip).copied().ok_or_raise(|| message!("failed to resolve new tip after rewrite"))?;
     Ok((changes, new_tip))
 }
 
@@ -134,7 +134,7 @@ pub fn export_map(repo: &Repository, exclusive_base: ObjectId, tip: ObjectId, pa
         let message = full_message(repo, oid)?;
         out.push_str(&format!("{}\n{}\n\n---\n\n", oid, message));
     }
-    std::fs::write(path, out)?;
+    std::fs::write(path, out).or_raise(|| message!("write reword map export"))?;
     Ok(())
 }
 
