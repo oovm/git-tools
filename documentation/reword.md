@@ -20,13 +20,6 @@ Export a JSON map template:
 git-reword export --repo /path/to/repo --base 34e1e665^ --ref dev --path reword.pending.json
 ```
 
-Lint existing messages or a pending map:
-
-```bash
-git-reword lint-log --repo /path/to/repo --base 34e1e665^ --ref dev
-git-reword lint-map --repo /path/to/repo --base 34e1e665^ --path reword.pending.json
-```
-
 Dry-run, then apply:
 
 ```bash
