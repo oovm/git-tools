@@ -8,6 +8,7 @@ Rust git utilities built on **[gix](https://github.com/GitoxideLabs/gitoxide)** 
 |--------------|----------------|------------------------------------------------------------------------|
 | `bfg`        | `object`       | Scan the object database and list the largest blobs                    |
 | `git-reword` | `commit`       | Rewrite commit messages at the object layer without interactive rebase |
+| `git-retime` | `commit`       | Spread commit timestamps across a date range on a new branch           |
 
 ## 🚀 Install
 
@@ -16,6 +17,7 @@ Install a binary from the Git repository (no local clone required):
 ```bash
 cargo install --git https://github.com/oovm/git-tools.git --bin bfg
 cargo install --git https://github.com/oovm/git-tools.git --bin git-reword
+cargo install --git https://github.com/oovm/git-tools.git --bin git-retime
 ```
 
 Track the `dev` branch while the crate is pre-release:
@@ -23,6 +25,7 @@ Track the `dev` branch while the crate is pre-release:
 ```bash
 cargo install --git https://github.com/oovm/git-tools.git --branch dev --bin bfg
 cargo install --git https://github.com/oovm/git-tools.git --branch dev --bin git-reword
+cargo install --git https://github.com/oovm/git-tools.git --branch dev --bin git-retime
 ```
 
 ## 🛠️ Development
@@ -43,13 +46,15 @@ git-tools/
   src/
     repo.rs       # repository discovery and OID helpers
     object/       # ODB blob inventory
-    commit/       # commit history and message rewrite
+    commit/       # commit history, message rewrite, and retime
   bin/
     bfg.rs
     git-reword.rs
+    git-retime.rs
   documentation/
     bfg.md
     reword.md
+    retime.md
 ```
 
 ## 🧪 CI

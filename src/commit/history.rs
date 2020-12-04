@@ -98,6 +98,54 @@ pub fn write_commit(repo: &Repository, commit: &Commit<'_>, parents: &[ObjectId]
     Ok(repo.write_object(&commit_obj).or_raise(|| message!("write commit object"))?.detach())
 }
 
+/// 写入新 commit 对象：替换 parents、message 与 author/committer 签名。
+pub fn write_commit_with_signatures(
+    repo: &Repository,
+    commit: &Commit<'_>,
+    parents: &[ObjectId],
+    message: &str,
+    author: gix::actor::Signature,
+    committer: gix::actor::Signature,
+) -> Result<ObjectId> {
+    let decoded = commit.decode().or_raise(|| message!("decode commit object"))?;
+    let commit_obj = gix::objs::Commit {
+        tree: decoded.tree(),
+        parents: parents.iter().copied().collect(),
+        author,
+        committer,
+        message: message.into(),
+        encoding: decoded.encoding.map(|encoding| encoding.to_owned()),
+        extra_headers: decoded
+            .extra_headers
+            .iter()
+            .map(|(key, value)| ((*key).to_owned(), value.as_ref().to_owned()))
+            .collect(),
+    };
+    Ok(repo.write_object(&commit_obj).or_raise(|| message!("write commit object"))?.detach())
+}
+
+/// 创建或强制更新本地分支 tip（等价于 `git branch -f`）。
+pub fn set_branch_tip(repo: &Repository, branch: &str, tip: ObjectId) -> Result<()> {
+    let ref_name = if branch.starts_with("refs/") { branch.to_string() } else { format!("refs/heads/{}", branch) };
+    let name: gix::refs::FullName =
+        ref_name.try_into().map_err(|err: gix::validate::reference::name::Error| validation(err.to_string()))?;
+    repo.edit_reference(RefEdit {
+        change: Change::Update {
+            log: LogChange {
+                mode: RefLog::AndReference,
+                force_create_reflog: false,
+                message: format!("git-retime: update {} to {}", branch, crate::repo::short(tip)).into(),
+            },
+            expected: PreviousValue::Any,
+            new: Target::Object(tip),
+        },
+        name,
+        deref: false,
+    })
+    .or_raise(|| message!("update git branch"))?;
+    Ok(())
+}
+
 /// 将引用 `ref_name` 的 tip 从 `old_tip` 更新为 `new_tip`（带 reflog）。
 pub fn update_ref(repo: &Repository, ref_name: &str, new_tip: ObjectId, old_tip: ObjectId) -> Result<()> {
     let name: gix::refs::FullName =
