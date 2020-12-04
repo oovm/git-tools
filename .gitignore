@@ -13,7 +13,7 @@
 target/**/*
 Cargo.lock
 time-travel.*
-reword.pending.txt
+reword.pending.json
 
 # Node
 node_modules/

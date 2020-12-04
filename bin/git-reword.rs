@@ -1,4 +1,4 @@
-//! `git-reword` 命令行入口：导出映射、lint、对象层改写。
+//! `git-reword` 命令行入口：导出 JSON 映射、lint、对象层改写。
 
 use std::path::PathBuf;
 
@@ -8,7 +8,7 @@ use git_tools::{
     Result,
     commit::{
         collect_commits, dry_run_plan, duplicate_subjects, export_map, full_message, head_ref_name, lint_message, move_ref,
-        open, parse_map_file, plan_rewrite, resolve_map, resolve_ref_tip, resolve_rev, short,
+        open, parse_map, plan_rewrite, resolve_map, resolve_ref_tip, resolve_rev, short,
     },
     validation,
 };
@@ -30,16 +30,13 @@ struct Cli {
 enum Command {
     /// 按映射改写 commit 并更新分支 ref（无 interactive rebase）
     Rewrite {
-        /// exclusive base：从 tip 可达但不在该 OID 祖先链上的 commit 会被改写
         #[arg(long)]
         base: String,
-        /// 要更新的分支 ref，如 `refs/heads/dev` 或 `dev`
         #[arg(long, default_value = "HEAD")]
         r#ref: String,
-        /// hash 前缀 → message 映射文件
+        /// JSON 映射文件路径
         #[arg(long)]
-        map: PathBuf,
-        /// 仅打印计划，不写对象、不更新 ref
+        path: PathBuf,
         #[arg(long)]
         dry_run: bool,
     },
@@ -50,27 +47,26 @@ enum Command {
         #[arg(long, default_value = "HEAD")]
         r#ref: String,
     },
-    /// lint 映射文件中的 message 是否落在指定范围内
+    /// lint JSON 映射中的 message 是否落在指定范围内
     LintMap {
         #[arg(long)]
         base: String,
         #[arg(long, default_value = "HEAD")]
         r#ref: String,
         #[arg(long)]
-        map: PathBuf,
+        path: PathBuf,
     },
-    /// 导出 `base..ref` 的 hash 映射模板
+    /// 导出 `base..ref` 的 JSON 映射模板
     Export {
         #[arg(long)]
         base: String,
         #[arg(long, default_value = "HEAD")]
         r#ref: String,
-        #[arg(long, default_value = "reword.pending.txt")]
-        out: PathBuf,
+        #[arg(long, default_value = "reword.pending.json")]
+        path: PathBuf,
     },
 }
 
-/// 将 `HEAD` / 短分支名规范化为完整 ref 名。
 fn normalize_ref_name(repo: &gix::Repository, ref_name: &str) -> Result<String> {
     if ref_name == "HEAD" {
         return head_ref_name(repo);
@@ -86,11 +82,11 @@ fn main() -> Result<()> {
     let repo = open(&cli.repo)?;
 
     match cli.command {
-        Command::Rewrite { base, r#ref, map, dry_run } => {
+        Command::Rewrite { base, r#ref, path, dry_run } => {
             let exclusive_base = resolve_rev(&repo, &base)?;
             let tip = resolve_ref_tip(&repo, &r#ref)?;
             let chain = collect_commits(&repo, exclusive_base, tip)?;
-            let entries = parse_map_file(&map)?;
+            let entries = parse_map(&path)?;
             let updates = resolve_map(entries, &chain)?;
 
             for (oid, message) in &updates {
@@ -159,11 +155,11 @@ fn main() -> Result<()> {
             }
             println!("lint-log: {} commit(s) OK", chain_len);
         }
-        Command::LintMap { base, r#ref, map } => {
+        Command::LintMap { base, r#ref, path } => {
             let exclusive_base = resolve_rev(&repo, &base)?;
             let tip = resolve_ref_tip(&repo, &r#ref)?;
             let chain = collect_commits(&repo, exclusive_base, tip)?;
-            let entries = parse_map_file(&map)?;
+            let entries = parse_map(&path)?;
             let updates = resolve_map(entries, &chain)?;
             let mut failed = 0usize;
             for (oid, message) in &updates {
@@ -175,14 +171,14 @@ fn main() -> Result<()> {
             if failed > 0 {
                 std::process::exit(1);
             }
-            println!("lint-map: {} block(s) OK", updates.len());
+            println!("lint-map: {} entry(ies) OK", updates.len());
         }
-        Command::Export { base, r#ref, out } => {
+        Command::Export { base, r#ref, path } => {
             let exclusive_base = resolve_rev(&repo, &base)?;
             let tip = resolve_ref_tip(&repo, &r#ref)?;
             let count = collect_commits(&repo, exclusive_base, tip)?.len();
-            export_map(&repo, exclusive_base, tip, &out)?;
-            println!("export: wrote {} commit block(s) to {}", count, out.display());
+            export_map(&repo, exclusive_base, tip, &path)?;
+            println!("export: wrote {} commit entry(ies) to {}", count, path.display());
         }
     }
 

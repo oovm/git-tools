@@ -25,6 +25,8 @@ clap = { version = "4.5", features = ["derive"] }
 gix = { version = "0.68", default-features = false, features = ["revision", "max-performance-safe"] }
 gix-error = "0.3.2"
 regex = "1.11"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 [lints.rust]
 missing_docs = "deny"

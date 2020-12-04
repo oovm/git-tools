@@ -9,30 +9,45 @@ No interactive rebase and no `GIT_EDITOR` index drift. Only mapped commits (plus
 ## 🚀 Build
 
 ```bash
-cargo build -p git-reword --release
+cargo install --git https://github.com/oovm/git-tools.git --bin git-reword
 ```
 
 ## 📖 Workflow
 
-Export a hash-keyed map template:
+Export a JSON map template:
 
 ```bash
-git-reword export --repo /path/to/repo --base 34e1e665^ --ref dev
+git-reword export --repo /path/to/repo --base 34e1e665^ --ref dev --path reword.pending.json
 ```
 
 Lint existing messages or a pending map:
 
 ```bash
 git-reword lint-log --repo /path/to/repo --base 34e1e665^ --ref dev
-git-reword lint-map --repo /path/to/repo --base 34e1e665^ --map reword.pending.txt
+git-reword lint-map --repo /path/to/repo --base 34e1e665^ --path reword.pending.json
 ```
 
 Dry-run, then apply:
 
 ```bash
-git-reword rewrite --repo /path/to/repo --base 34e1e665^ --ref dev --map reword.pending.txt --dry-run
-git-reword rewrite --repo /path/to/repo --base 34e1e665^ --ref dev --map reword.pending.txt
+git-reword rewrite --repo /path/to/repo --base 34e1e665^ --ref dev --path reword.pending.json --dry-run
+git-reword rewrite --repo /path/to/repo --base 34e1e665^ --ref dev --path reword.pending.json
 ```
+
+## 📄 Map format
+
+Canonical export shape:
+
+```json
+{
+  "version": 1,
+  "entries": [
+    { "hash": "abc12345deadbeef...", "message": "✨ Subject\n\nBody." }
+  ]
+}
+```
+
+A flat object `{ "abc12345": "message" }` is also accepted for hand-edited maps.
 
 ## 🌳 Object reuse
 
@@ -41,5 +56,5 @@ Trees and blobs are reused. When an ancestor is rewritten, descendants get new c
 ## 🧪 Tests
 
 ```bash
-cargo test -p git-reword
+cargo test -p git-tools
 ```

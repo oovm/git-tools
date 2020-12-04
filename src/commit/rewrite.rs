@@ -1,10 +1,10 @@
 //! 对象层改写规划：按范围自旧向新 relink 父链并写入新 commit。
 
-use std::{collections::HashMap, path::Path};
+use std::collections::HashMap;
 
 use gix::{ObjectId, Repository};
 
-use crate::error::{OptionExt, Result, ResultExt, message, validation};
+use crate::error::{OptionExt, Result, message, validation};
 
 use super::history::{
     commit_message, commit_parents, commit_subject, commits_in_range, read_commit, synthetic_oid, write_commit,
@@ -123,19 +123,6 @@ pub fn dry_run_plan(
 /// 读取指定 commit 的完整 message。
 pub fn full_message(repo: &Repository, oid: ObjectId) -> Result<String> {
     Ok(commit_message(&read_commit(repo, oid)?))
-}
-
-/// 导出 `exclusive_base..tip` 范围内各 commit 的 hash 映射模板文件。
-pub fn export_map(repo: &Repository, exclusive_base: ObjectId, tip: ObjectId, path: &Path) -> Result<()> {
-    let chain = commits_in_range(repo, exclusive_base, tip)?;
-    let mut out = String::new();
-    out.push_str(&format!("# Hash-keyed reword map ({} commit(s)). Delete unchanged blocks before rewrite.\n\n", chain.len()));
-    for oid in chain {
-        let message = full_message(repo, oid)?;
-        out.push_str(&format!("{}\n{}\n\n---\n\n", oid, message));
-    }
-    std::fs::write(path, out).or_raise(|| message!("write reword map export"))?;
-    Ok(())
 }
 
 /// 收集 `exclusive_base..tip` 范围内的 commit OID（自旧到新）。

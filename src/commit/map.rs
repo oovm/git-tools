@@ -1,57 +1,65 @@
-//! hash 前缀映射文件：解析与在 commit 范围内解析 OID。
+//! commit message 映射：JSON 解析与在 commit 范围内解析 OID。
 
 use std::{collections::HashMap, fs, path::Path};
 
 use gix::ObjectId;
+use serde::{Deserialize, Serialize};
 
 use crate::error::{Result, ResultExt, message, validation, validation_with_input};
 
-/// 映射块首行 hash 的正则（8–40 位十六进制）。
-const HASH_LINE: &str = r"^[0-9a-fA-F]{8,40}$";
+/// JSON 映射条目。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MapEntry {
+    /// commit hash 前缀或完整 OID。
+    pub hash: String,
+    /// 完整 commit message。
+    pub message: String,
+}
 
-/// 解析 hash 映射文件：块之间用仅含 `---` 的一行分隔。
+/// JSON 映射文件（`entries` 数组形式）。
+#[derive(Debug, Deserialize, Serialize)]
+struct MapDocument {
+    #[serde(default = "default_version")]
+    version: u32,
+    entries: Vec<MapEntry>,
+}
+
+fn default_version() -> u32 {
+    1
+}
+
+/// 解析 JSON 映射文件。
 ///
-/// 每个块第一行非空、非 `#` 开头的内容为 commit hash 前缀，其余为完整 message。
-pub fn parse_map_file(path: &Path) -> Result<Vec<(String, String)>> {
-    let text = fs::read_to_string(path).or_raise(|| message!("read reword map file"))?;
-    let mut blocks = Vec::new();
-    for block in text.replace("\r\n", "\n").split("\n---\n") {
-        let block = block.trim();
-        if block.is_empty() {
-            continue;
-        }
-        let mut hash_line = "";
-        let mut message_start = 0usize;
-        let mut started = false;
-        for (index, line) in block.lines().enumerate() {
-            let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') {
-                continue;
-            }
-            if !started {
-                hash_line = trimmed;
-                message_start = index + 1;
-                started = true;
-                break;
-            }
-        }
-        if !started {
-            continue;
-        }
-        let re = regex::Regex::new(HASH_LINE).expect("hash regex");
-        if !re.is_match(hash_line) {
-            return Err(validation_with_input("expected commit hash", hash_line));
-        }
-        let message = block.lines().skip(message_start).collect::<Vec<_>>().join("\n").trim().to_string();
-        if message.is_empty() {
-            return Err(validation_with_input("missing message for commit hash", hash_line));
-        }
-        blocks.push((hash_line.to_lowercase(), message));
+/// 支持两种形状：
+///
+/// - 文档：`{ "version": 1, "entries": [ { "hash": "...", "message": "..." } ] }`
+/// - 扁平对象：`{ "abc12345": "message", ... }`
+pub fn parse_map(path: &Path) -> Result<Vec<(String, String)>> {
+    let text = fs::read_to_string(path).or_raise(|| message!("read reword map json"))?;
+    if let Ok(document) = serde_json::from_str::<MapDocument>(&text) {
+        return normalize_map_entries(document.entries);
     }
-    if blocks.is_empty() {
-        return Err(validation("no commit blocks in map file"));
-    }
-    Ok(blocks)
+    let flat: HashMap<String, String> = serde_json::from_str(&text).or_raise(|| message!("parse reword map json"))?;
+    let entries = flat.into_iter().map(|(hash, message)| MapEntry { hash, message }).collect();
+    normalize_map_entries(entries)
+}
+
+/// 导出 JSON 映射模板。
+pub fn export_map(repo: &gix::Repository, exclusive_base: ObjectId, tip: ObjectId, path: &Path) -> Result<()> {
+    use super::rewrite::{collect_commits, full_message};
+
+    let chain = collect_commits(repo, exclusive_base, tip)?;
+    let entries = chain
+        .into_iter()
+        .map(|oid| {
+            let message = full_message(repo, oid)?;
+            Ok(MapEntry { hash: oid.to_string(), message })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let document = MapDocument { version: 1, entries };
+    let text = serde_json::to_string_pretty(&document).or_raise(|| message!("serialize reword map json"))?;
+    fs::write(path, text).or_raise(|| message!("write reword map json"))?;
+    Ok(())
 }
 
 /// 将 hash 前缀条目解析为范围内的唯一 `ObjectId` → message 映射。
@@ -75,4 +83,27 @@ pub fn resolve_map(entries: Vec<(String, String)>, commits_in_range: &[ObjectId]
         resolved.insert(oid, message);
     }
     Ok(resolved)
+}
+
+fn normalize_map_entries(entries: Vec<MapEntry>) -> Result<Vec<(String, String)>> {
+    if entries.is_empty() {
+        return Err(validation("no commit entries in reword map json"));
+    }
+    let mut out = Vec::with_capacity(entries.len());
+    for entry in entries {
+        let hash = entry.hash.trim();
+        if !is_commit_hash(hash) {
+            return Err(validation_with_input("expected commit hash", hash));
+        }
+        let message = entry.message.trim();
+        if message.is_empty() {
+            return Err(validation_with_input("missing message for commit hash", hash));
+        }
+        out.push((hash.to_ascii_lowercase(), message.to_string()));
+    }
+    Ok(out)
+}
+
+fn is_commit_hash(hash: &str) -> bool {
+    (8..=40).contains(&hash.len()) && hash.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
