@@ -2,28 +2,34 @@
 
 use std::path::PathBuf;
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 
 use git_tools::{
     Result,
-    commit::{RetimeOptions, open, run_retime, short},
+    commit::{RetimeOptions, RetimeRootOptions, open, run_retime, run_retime_root, short},
 };
 
-/// 将 `(commit..HEAD]` 上的 author/committer 时间随机分布到日期区间，结果写入新分支。
+/// 将 commit author/committer 时间随机分布到日期区间，结果写入新分支。
+///
+/// 只改时间戳，不改动 author/committer 的 name/email（不会像 `git commit --amend` 那样写入本地用户）。
 #[derive(Parser)]
 #[command(name = "git-retime", about = "Spread commit timestamps across a date range (pure Rust / gix)")]
+#[command(args_conflicts_with_subcommands = true)]
 struct Cli {
     /// git 仓库路径（默认为当前目录）
     #[arg(long, default_value = ".")]
     repo: PathBuf,
 
-    /// 范围起点 commit hash 或 revision
-    commit: String,
+    #[command(subcommand)]
+    command: Option<Command>,
 
-    /// 随机时间分布起始日期（`YYYY-MM-DD`）
-    start_date: String,
+    /// 范围起点 commit（`(commit..tip]`，不含起点本身）
+    commit: Option<String>,
 
-    /// 随机时间分布结束日期；缺省为 `start_date + commit 数量` 天
+    /// 随机时间窗口起点（`YYYY-MM-DD` 或 `YYYY-MM-DDTHH:MM:SS`）
+    start_date: Option<String>,
+
+    /// 随机时间窗口终点；缺省为 `start + commit 数量` 天
     #[arg(short, long, value_name = "END")]
     end_date: Option<String>,
 
@@ -36,24 +42,47 @@ struct Cli {
     tip: String,
 }
 
+/// 子命令。
+#[derive(Subcommand)]
+enum Command {
+    /// 从 root 到 `--tip` 改写全部 commit 时间（含 root），可选改写 root message
+    Root {
+        /// 随机时间窗口起点（`YYYY-MM-DD` 或 ISO datetime）
+        start_date: String,
+
+        /// 随机时间窗口终点
+        #[arg(short, long, value_name = "END")]
+        end_date: Option<String>,
+
+        /// 输出分支名；缺省为 `time-travel`
+        #[arg(short, long, value_name = "BRANCH")]
+        branch: Option<String>,
+
+        /// 范围终点 revision；缺省为 `HEAD`
+        #[arg(long, default_value = "HEAD")]
+        tip: String,
+
+        /// 改写 root commit message（对应旧 `git-root`）
+        #[arg(short, long)]
+        message: Option<String>,
+    },
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let repo = open(&cli.repo)?;
-    let summary = run_retime(
-        &repo,
-        &RetimeOptions {
-            commit: cli.commit,
-            start_date: cli.start_date,
-            end_date: cli.end_date,
-            branch: cli.branch,
-            tip: cli.tip,
-        },
-    )?;
-    println!(
-        "retimed {} commit(s) on branch {}; tip {}",
-        summary.rewritten,
-        summary.branch,
-        short(summary.new_tip)
-    );
+
+    let summary = match cli.command {
+        Some(Command::Root { start_date, end_date, branch, tip, message }) => {
+            run_retime_root(&repo, &RetimeRootOptions { start_date, end_date, branch, tip, message })?
+        }
+        None => {
+            let commit = cli.commit.ok_or_else(|| git_tools::validation("missing commit hash for range retime"))?;
+            let start_date = cli.start_date.ok_or_else(|| git_tools::validation("missing start datetime"))?;
+            run_retime(&repo, &RetimeOptions { commit, start_date, end_date: cli.end_date, branch: cli.branch, tip: cli.tip })?
+        }
+    };
+
+    println!("retimed {} commit(s) on branch {}; tip {}", summary.rewritten, summary.branch, short(summary.new_tip));
     Ok(())
 }

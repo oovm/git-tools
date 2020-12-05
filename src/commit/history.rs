@@ -43,6 +43,19 @@ pub fn head_ref_name(repo: &Repository) -> Result<String> {
     Ok(head.name().as_bstr().to_string())
 }
 
+/// 沿 first-parent 链从 `tip` 追溯到无父 commit（root）。
+pub fn find_root_commit(repo: &Repository, tip: ObjectId) -> Result<ObjectId> {
+    let mut current = tip;
+    loop {
+        let commit = read_commit(repo, current)?;
+        let parents = commit_parents(&commit);
+        if parents.is_empty() {
+            return Ok(current);
+        }
+        current = parents[0];
+    }
+}
+
 /// 收集 `exclusive_base..tip` 范围内的 commit OID，按 commit 时间从旧到新。
 pub fn commits_in_range(repo: &Repository, exclusive_base: ObjectId, tip: ObjectId) -> Result<Vec<ObjectId>> {
     let mut ids = Vec::new();
