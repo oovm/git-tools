@@ -19,6 +19,11 @@ pub fn open(path: &Path) -> Result<Repository> {
     Ok(gix::discover(path).or_raise(|| message!("discover git repository"))?)
 }
 
+/// 从当前工作目录向上发现 git 仓库并打开。
+pub fn open_here() -> Result<Repository> {
+    open(&std::env::current_dir().or_raise(|| message!("read current directory"))?)
+}
+
 /// 将 revision 字符串解析为对象 OID（如 `HEAD`、`34e1e665^`）。
 pub fn resolve_rev(repo: &Repository, rev: &str) -> Result<ObjectId> {
     Ok(repo.rev_parse_single(rev).or_raise(|| message!("resolve revision"))?.detach())

@@ -16,12 +16,7 @@ From the repository root (walks up to find `.git`):
 
 ```bash
 bfg
-```
-
-Explicit path and result limit:
-
-```bash
-bfg --repo /path/to/repo --top 50
+bfg --top 50
 ```
 
 ## 📤 Example output

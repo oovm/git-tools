@@ -1,12 +1,10 @@
 //! `git-retime` 命令行入口：在对象层随机分布 commit 时间并写入新分支。
 
-use std::path::PathBuf;
-
 use clap::{Parser, Subcommand};
 
 use git_tools::{
     Result,
-    commit::{RetimeOptions, RetimeRootOptions, open, run_retime, run_retime_root, short},
+    commit::{RetimeOptions, RetimeRootOptions, open_here, run_retime, run_retime_root, short},
 };
 
 /// 将 commit author/committer 时间随机分布到日期区间，结果写入新分支。
@@ -16,10 +14,6 @@ use git_tools::{
 #[command(name = "git-retime", about = "Spread commit timestamps across a date range (pure Rust / gix)")]
 #[command(args_conflicts_with_subcommands = true)]
 struct Cli {
-    /// git 仓库路径（默认为当前目录）
-    #[arg(long, default_value = ".")]
-    repo: PathBuf,
-
     #[command(subcommand)]
     command: Option<Command>,
 
@@ -70,7 +64,7 @@ enum Command {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    let repo = open(&cli.repo)?;
+    let repo = open_here()?;
 
     let summary = match cli.command {
         Some(Command::Root { start_date, end_date, branch, tip, message }) => {

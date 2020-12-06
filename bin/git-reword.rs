@@ -7,7 +7,7 @@ use clap::{Parser, Subcommand};
 use git_tools::{
     Result,
     commit::{
-        collect_commits, dry_run_plan, export_map, move_ref, open, parse_map, plan_rewrite, resolve_map, resolve_ref_tip,
+        collect_commits, dry_run_plan, export_map, move_ref, open_here, parse_map, plan_rewrite, resolve_map, resolve_ref_tip,
         resolve_rev, short,
     },
     validation,
@@ -17,10 +17,6 @@ use git_tools::{
 #[derive(Parser)]
 #[command(name = "git-reword", about = "Rewrite commit messages at the git object layer (pure Rust / gix)")]
 struct Cli {
-    /// git 仓库路径（默认为当前目录）
-    #[arg(long, default_value = ".")]
-    repo: PathBuf,
-
     #[command(subcommand)]
     command: Command,
 }
@@ -63,7 +59,7 @@ fn normalize_ref_name(repo: &gix::Repository, ref_name: &str) -> Result<String> 
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    let repo = open(&cli.repo)?;
+    let repo = open_here()?;
 
     match cli.command {
         Command::Rewrite { base, r#ref, path, dry_run } => {

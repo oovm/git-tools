@@ -4,7 +4,8 @@ Rewrite commit messages by **writing new commit objects** and updating a branch 
 
 Implemented with **[gix](https://github.com/GitoxideLabs/gitoxide)** (pure Rust, no `libgit2`).
 
-No interactive rebase and no `GIT_EDITOR` index drift. Only mapped commits (plus descendants that need parent relinking) are rewritten.
+No interactive rebase and no `GIT_EDITOR` index drift. Only mapped commits (plus descendants that need parent relinking)
+are rewritten.
 
 ## 🚀 Build
 
@@ -17,15 +18,17 @@ cargo install --git https://github.com/oovm/git-tools.git --bin git-reword
 Export a JSON map template:
 
 ```bash
-git-reword export --repo /path/to/repo --base 34e1e665^ --ref dev --path reword.pending.json
+git-reword export --base 34e1e665^ --ref dev --path reword.pending.json
 ```
 
 Dry-run, then apply:
 
 ```bash
-git-reword rewrite --repo /path/to/repo --base 34e1e665^ --ref dev --path reword.pending.json --dry-run
-git-reword rewrite --repo /path/to/repo --base 34e1e665^ --ref dev --path reword.pending.json
+git-reword rewrite --base 34e1e665^ --ref dev --path reword.pending.json --dry-run
+git-reword rewrite --base 34e1e665^ --ref dev --path reword.pending.json
 ```
+
+Run from the repository working tree (or any subdirectory). The tool discovers `.git` like `git` itself.
 
 ## 📄 Map format
 
@@ -35,7 +38,10 @@ Canonical export shape:
 {
   "version": 1,
   "entries": [
-    { "hash": "abc12345deadbeef...", "message": "✨ Subject\n\nBody." }
+    {
+      "hash": "abc12345deadbeef...",
+      "message": "✨ Subject\n\nBody."
+    }
   ]
 }
 ```
@@ -44,7 +50,8 @@ A flat object `{ "abc12345": "message" }` is also accepted for hand-edited maps.
 
 ## 🌳 Object reuse
 
-Trees and blobs are reused. When an ancestor is rewritten, descendants get new commit objects with relinked parents even if their message is unchanged.
+Trees and blobs are reused. When an ancestor is rewritten, descendants get new commit objects with relinked parents even
+if their message is unchanged.
 
 ## 🧪 Tests
 
