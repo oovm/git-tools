@@ -7,6 +7,9 @@ Implemented with **[gix](https://github.com/GitoxideLabs/gitoxide)** (pure Rust,
 No interactive rebase and no `GIT_EDITOR` index drift. Only mapped commits (plus descendants that need parent relinking)
 are rewritten.
 
+Unlike `git commit --amend`, **author and committer name/email are never replaced** with your local `user.name` /
+`user.email`. Contributors are not added or removed.
+
 ## 🚀 Build
 
 ```bash

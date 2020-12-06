@@ -7,6 +7,9 @@ Implemented with **[gix](https://github.com/GitoxideLabs/gitoxide)** (pure Rust,
 
 No interactive rebase. The current branch is left unchanged. By default the result is written to `time-travel`.
 
+Unlike `git commit --amend --date=…`, **name and email are never replaced** with your local `user.name` / `user.email`.
+Contributors are not added or removed. Only timestamps change.
+
 ## 🚀 Build
 
 ```bash

@@ -14,6 +14,8 @@ use gix::{
 
 use crate::error::{Result, ResultExt, message, validation};
 
+use super::identity::{copy_signature, same_contributor};
+
 /// 从路径发现 git 工作区并打开仓库。
 pub fn open(path: &Path) -> Result<Repository> {
     Ok(gix::discover(path).or_raise(|| message!("discover git repository"))?)
@@ -97,14 +99,14 @@ pub fn commit_subject(commit: &Commit<'_>) -> String {
     commit_message(commit).lines().next().unwrap_or("").trim().to_string()
 }
 
-/// 写入新 commit 对象：复用 tree/author/committer，替换 parents 与 message。
+/// 写入新 commit 对象：复用 tree 与 author/committer 身份，替换 parents 与 message。
 pub fn write_commit(repo: &Repository, commit: &Commit<'_>, parents: &[ObjectId], message: &str) -> Result<ObjectId> {
     let decoded = commit.decode().or_raise(|| message!("decode commit object"))?;
     let commit_obj = gix::objs::Commit {
         tree: decoded.tree(),
         parents: parents.iter().copied().collect(),
-        author: decoded.author().into(),
-        committer: decoded.committer().into(),
+        author: copy_signature(decoded.author().into()),
+        committer: copy_signature(decoded.committer().into()),
         message: message.into(),
         encoding: decoded.encoding.map(|encoding| encoding.to_owned()),
         extra_headers: decoded
@@ -117,6 +119,8 @@ pub fn write_commit(repo: &Repository, commit: &Commit<'_>, parents: &[ObjectId]
 }
 
 /// 写入新 commit 对象：替换 parents、message 与 author/committer 签名。
+///
+/// 调用方须保证 `author` / `committer` 的 name 与 email 与源 commit 一致（`retime` 仅改时间戳）。
 pub fn write_commit_with_signatures(
     repo: &Repository,
     commit: &Commit<'_>,
@@ -126,6 +130,11 @@ pub fn write_commit_with_signatures(
     committer: gix::actor::Signature,
 ) -> Result<ObjectId> {
     let decoded = commit.decode().or_raise(|| message!("decode commit object"))?;
+    let source_author = copy_signature(decoded.author().into());
+    let source_committer = copy_signature(decoded.committer().into());
+    if !same_contributor(&author, &source_author) || !same_contributor(&committer, &source_committer) {
+        return Err(validation("author or committer identity must match the source commit"));
+    }
     let commit_obj = gix::objs::Commit {
         tree: decoded.tree(),
         parents: parents.iter().copied().collect(),

@@ -3,14 +3,17 @@
 use std::collections::BTreeSet;
 
 use chrono::{Duration, NaiveDate, NaiveDateTime, NaiveTime};
-use gix::{ObjectId, Repository, actor::Signature};
+use gix::{ObjectId, Repository};
 use rand::Rng;
 
 use crate::error::{Result, validation};
 
-use super::history::{
-    commit_message, commit_parents, commits_in_range, find_root_commit, read_commit, set_branch_tip,
-    write_commit_with_signatures,
+use super::{
+    history::{
+        commit_message, commit_parents, commits_in_range, find_root_commit, read_commit, set_branch_tip,
+        write_commit_with_signatures,
+    },
+    identity::{copy_signature, retime_signature},
 };
 
 /// 范围 retime：改写 `(commit..tip]`。
@@ -113,8 +116,8 @@ pub fn plan_retime_chain(
 
         let decoded = commit.decode().map_err(|err| validation(err.to_string()))?;
         let seconds = timestamps[index];
-        let author = retime_signature(decoded.author().into(), seconds);
-        let committer = retime_signature(decoded.committer().into(), seconds);
+        let author = retime_signature(copy_signature(decoded.author().into()), seconds);
+        let committer = retime_signature(copy_signature(decoded.committer().into()), seconds);
         let message = if index == 0 {
             root_message.map(str::to_string).unwrap_or_else(|| commit_message(&commit))
         }
@@ -172,43 +175,5 @@ fn resolve_end(end_date: Option<&str>, start: NaiveDateTime, commit_count: usize
     match end_date {
         Some(value) => parse_datetime(value),
         None => Ok(start + Duration::days(commit_count as i64)),
-    }
-}
-
-/// 仅替换 `time.seconds`，完整保留 name、email、offset 与 sign。
-fn retime_signature(original: Signature, seconds: i64) -> Signature {
-    Signature {
-        name: original.name,
-        email: original.email,
-        time: gix::date::Time { seconds, offset: original.time.offset, sign: original.time.sign },
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use chrono::Timelike;
-
-    use super::{parse_datetime, retime_signature};
-
-    #[test]
-    fn parse_datetime_accepts_iso() {
-        let parsed = parse_datetime("2019-03-22T14:30:00").unwrap();
-        assert_eq!(parsed.hour(), 14);
-        assert_eq!(parsed.minute(), 30);
-    }
-
-    #[test]
-    fn retime_signature_preserves_identity() {
-        let original = gix::actor::Signature {
-            name: "Alice".into(),
-            email: "alice@example.com".into(),
-            time: gix::date::Time { seconds: 1_000, offset: 28_800, sign: gix::date::time::Sign::Plus },
-        };
-        let updated = retime_signature(original.clone(), 9_999);
-        assert_eq!(updated.name, original.name);
-        assert_eq!(updated.email, original.email);
-        assert_eq!(updated.time.offset, original.time.offset);
-        assert_eq!(updated.time.sign, original.time.sign);
-        assert_eq!(updated.time.seconds, 9_999);
     }
 }
