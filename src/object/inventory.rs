@@ -47,7 +47,7 @@ impl Cleaner {
             match header.kind() {
                 Kind::Tree => self.trees.push(oid),
                 Kind::Blob => {
-                    self.blob_size += header.size() as u64;
+                    self.blob_size += header.size();
                     self.blobs.push(oid);
                 }
                 Kind::Commit | Kind::Tag => {}

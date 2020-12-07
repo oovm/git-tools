@@ -2,7 +2,7 @@
 
 //! Git 工具库：对象库 blob 统计与 commit message 对象层改写。
 //!
-//! 模块按能力划分：[`repo`](repo) 仓库访问、[`object`](object) 对象库、[`commit`](commit) 提交历史与改写。
+//! 模块按能力划分：[`repo`] 仓库访问、[`object`] 对象库、[`commit`] 提交历史与改写。
 
 /// commit 历史遍历与 message 改写。
 pub mod commit;

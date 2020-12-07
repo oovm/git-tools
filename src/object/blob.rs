@@ -52,7 +52,7 @@ impl PartialEq for BlobItem {
 
 impl PartialOrd for BlobItem {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.size.partial_cmp(&other.size)
+        Some(self.cmp(other))
     }
 }
 
