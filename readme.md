@@ -35,6 +35,8 @@ Requires the pinned toolchain in [`rust-toolchain.toml`](rust-toolchain.toml) (n
 ```bash
 git clone https://github.com/oovm/git-tools.git
 cd git-tools
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features -- -D warnings
 cargo build --release
 cargo test
 ```
