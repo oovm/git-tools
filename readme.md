@@ -39,7 +39,10 @@ cargo fmt --all -- --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo build --release
 cargo test
+RUST_LOG=info cargo run --bin bfg
 ```
+
+CLI errors are rendered with **miette**; set `RUST_LOG=debug` (or `info` / `trace`) for **tracing** diagnostics on stderr. User-facing stdout stays plain English.
 
 ## 📦 Layout
 

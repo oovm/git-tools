@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, NaiveTime};
 use gix::{ObjectId, Repository};
 use rand::Rng;
+use tracing::instrument;
 
 use crate::error::{Result, validation};
 
@@ -148,6 +149,7 @@ pub fn plan_retime(repo: &Repository, exclusive_base: ObjectId, tip: ObjectId, t
 }
 
 /// 按 [`RetimeOptions`] 解析范围、生成时间戳、改写对象并创建分支。
+#[instrument(skip(repo, options), fields(commit = %options.commit, tip = %options.tip))]
 pub fn run_retime(repo: &Repository, options: &RetimeOptions) -> Result<RetimeSummary> {
     let exclusive_base = super::history::resolve_rev(repo, &options.commit)?;
     let tip = resolve_tip(repo, &options.tip)?;
@@ -162,6 +164,7 @@ pub fn run_retime(repo: &Repository, options: &RetimeOptions) -> Result<RetimeSu
 }
 
 /// 从 root 到 `tip`（含 root）retime 并创建分支。
+#[instrument(skip(repo, options), fields(tip = %options.tip))]
 pub fn run_retime_root(repo: &Repository, options: &RetimeRootOptions) -> Result<RetimeSummary> {
     let tip = resolve_tip(repo, &options.tip)?;
     let root = find_root_commit(repo, tip)?;

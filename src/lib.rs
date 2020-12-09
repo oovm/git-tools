@@ -6,6 +6,8 @@
 
 /// commit 历史遍历与 message 改写。
 pub mod commit;
+/// CLI 追踪与 miette 错误报告。
+pub mod diag;
 /// 统一错误类型（`gix-error`）。
 pub mod error;
 /// 对象库遍历与 blob 统计。

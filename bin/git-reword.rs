@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
+use tracing::info;
 
 use git_tools::{
     Result,
@@ -10,7 +11,7 @@ use git_tools::{
         collect_commits, dry_run_plan, export_map, move_ref, open_here, parse_map, plan_rewrite, resolve_map, resolve_ref_tip,
         resolve_rev, short,
     },
-    validation,
+    diag, validation,
 };
 
 /// 全局参数与子命令。
@@ -24,19 +25,19 @@ struct Cli {
 /// 子命令：改写或导出映射模板。
 #[derive(Subcommand)]
 enum Command {
-    /// 按映射改写 commit 并更新分支 ref（无 interactive rebase）
+    /// Rewrite commits from a JSON map and update the branch ref (no interactive rebase)
     Rewrite {
         #[arg(long)]
         base: String,
         #[arg(long, default_value = "HEAD")]
         r#ref: String,
-        /// JSON 映射文件路径
+        /// Path to the JSON reword map
         #[arg(long)]
         path: PathBuf,
         #[arg(long)]
         dry_run: bool,
     },
-    /// 导出 `base..ref` 的 JSON 映射模板
+    /// Export a JSON reword map template for `base..ref`
     Export {
         #[arg(long)]
         base: String,
@@ -57,12 +58,13 @@ fn normalize_ref_name(repo: &gix::Repository, ref_name: &str) -> Result<String> 
     Ok(format!("refs/heads/{}", ref_name))
 }
 
-fn main() -> Result<()> {
+fn run() -> Result<()> {
     let cli = Cli::parse();
     let repo = open_here()?;
 
     match cli.command {
         Command::Rewrite { base, r#ref, path, dry_run } => {
+            info!(base = %base, r#ref = %r#ref, path = ?path, dry_run, "reword rewrite");
             let exclusive_base = resolve_rev(&repo, &base)?;
             let tip = resolve_ref_tip(&repo, &r#ref)?;
             let chain = collect_commits(&repo, exclusive_base, tip)?;
@@ -72,7 +74,7 @@ fn main() -> Result<()> {
             if dry_run {
                 let changes = dry_run_plan(&repo, exclusive_base, tip, &updates)?;
                 if changes.is_empty() {
-                    println!("dry-run: no object rewrites needed");
+                    println!("dry-run: no commit objects need rewriting");
                     return Ok(());
                 }
                 println!("dry-run: {} commit object(s) would be rewritten on {}\n", changes.len(), r#ref);
@@ -90,7 +92,7 @@ fn main() -> Result<()> {
             let old_tip = tip;
             let (changes, new_tip) = plan_rewrite(&repo, exclusive_base, tip, &updates)?;
             if changes.is_empty() {
-                return Err(validation("no object rewrites performed"));
+                return Err(validation("no commit objects were rewritten"));
             }
 
             let ref_name = normalize_ref_name(&repo, &r#ref)?;
@@ -102,6 +104,7 @@ fn main() -> Result<()> {
             }
         }
         Command::Export { base, r#ref, path } => {
+            info!(base = %base, r#ref = %r#ref, path = ?path, "reword export");
             let exclusive_base = resolve_rev(&repo, &base)?;
             let tip = resolve_ref_tip(&repo, &r#ref)?;
             let count = collect_commits(&repo, exclusive_base, tip)?.len();
@@ -111,4 +114,8 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn main() {
+    diag::main(run);
 }

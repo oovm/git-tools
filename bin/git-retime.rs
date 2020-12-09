@@ -1,10 +1,12 @@
 //! `git-retime` 命令行入口：在对象层随机分布 commit 时间并写入新分支。
 
 use clap::{Parser, Subcommand};
+use tracing::info;
 
 use git_tools::{
     Result,
     commit::{RetimeOptions, RetimeRootOptions, open_here, run_retime, run_retime_root, short},
+    diag,
 };
 
 /// 将 commit author/committer 时间随机分布到日期区间，结果写入新分支。
@@ -64,16 +66,18 @@ enum Command {
     },
 }
 
-fn main() -> Result<()> {
+fn run() -> Result<()> {
     let cli = Cli::parse();
     let repo = open_here()?;
 
     let summary = match cli.command {
         Some(Command::Root { start_date, end_date, branch, tip, message }) => {
+            info!(mode = "root", tip = %tip, "retime");
             run_retime_root(&repo, &RetimeRootOptions { start_date, end_date, branch, tip, message })?
         }
         None => {
             let commit = cli.commit.ok_or_else(|| git_tools::validation("missing commit hash for range retime"))?;
+            info!(mode = "range", commit = %commit, tip = %cli.tip, "retime");
             run_retime(
                 &repo,
                 &RetimeOptions { commit, start_date: cli.start_date, end_date: cli.end_date, branch: cli.branch, tip: cli.tip },
@@ -83,4 +87,8 @@ fn main() -> Result<()> {
 
     println!("retimed {} commit(s) on branch {}; tip {}", summary.rewritten, summary.branch, short(summary.new_tip));
     Ok(())
+}
+
+fn main() {
+    diag::main(run);
 }

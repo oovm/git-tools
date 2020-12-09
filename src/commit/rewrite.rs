@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use gix::{ObjectId, Repository};
+use tracing::instrument;
 
 use crate::error::{OptionExt, Result, message, validation};
 
@@ -28,6 +29,7 @@ pub struct PlannedChange {
 /// 按 `updates` 映射在 `exclusive_base..tip` 上规划并执行对象改写，返回变更列表与新 tip。
 ///
 /// 自旧向新遍历：若 message 或父 OID 变化则写新 commit，否则复用原 OID。
+#[instrument(skip(repo, updates), fields(base = %exclusive_base, tip = %tip))]
 pub fn plan_rewrite(
     repo: &Repository,
     exclusive_base: ObjectId,
