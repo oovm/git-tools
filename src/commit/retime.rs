@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use chrono::{Duration, NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, NaiveTime};
 use gix::{ObjectId, Repository};
 use rand::Rng;
 
@@ -21,8 +21,8 @@ use super::{
 pub struct RetimeOptions {
     /// 范围起点 commit（改写 `(commit..tip]`，不含 `commit` 本身）。
     pub commit: String,
-    /// 随机时间分布起始时刻（`YYYY-MM-DD` 或 ISO datetime）。
-    pub start_date: String,
+    /// 随机时间分布起始时刻（`YYYY-MM-DD` 或 ISO datetime）；缺省为范围起点 commit 的 author 时间。
+    pub start_date: Option<String>,
     /// 随机时间分布结束时刻；缺省为 `start_date + commit 数量` 天。
     pub end_date: Option<String>,
     /// 新分支名；缺省为 `time-travel`。
@@ -34,8 +34,8 @@ pub struct RetimeOptions {
 /// 从 root 起的 retime：改写 `[root..tip]`（含 root）。
 #[derive(Debug, Clone)]
 pub struct RetimeRootOptions {
-    /// 随机时间分布起始时刻（`YYYY-MM-DD` 或 ISO datetime）。
-    pub start_date: String,
+    /// 随机时间分布起始时刻（`YYYY-MM-DD` 或 ISO datetime）；缺省为范围起点 commit 的 author 时间。
+    pub start_date: Option<String>,
     /// 随机时间分布结束时刻；缺省为 `start_date + commit 数量` 天。
     pub end_date: Option<String>,
     /// 新分支名；缺省为 `time-travel`。
@@ -72,6 +72,16 @@ pub fn parse_datetime(input: &str) -> Result<NaiveDateTime> {
         }
     }
     parse_date(input)
+}
+
+/// 将 commit 的 author 时间转为 UTC naive datetime（用作默认窗口起点）。
+pub fn commit_author_datetime(repo: &Repository, oid: ObjectId) -> Result<NaiveDateTime> {
+    let commit = read_commit(repo, oid)?;
+    let decoded = commit.decode().map_err(|err| validation(err.to_string()))?;
+    let seconds = decoded.author().time.seconds;
+    DateTime::from_timestamp(seconds, 0)
+        .map(|value| value.naive_utc())
+        .ok_or_else(|| validation("commit author timestamp out of range"))
 }
 
 /// 在 `[start, end)` 内生成 `count` 个不重复 Unix 秒时间戳（升序）。
@@ -142,7 +152,7 @@ pub fn run_retime(repo: &Repository, options: &RetimeOptions) -> Result<RetimeSu
     let exclusive_base = super::history::resolve_rev(repo, &options.commit)?;
     let tip = resolve_tip(repo, &options.tip)?;
     let chain = commits_in_range(repo, exclusive_base, tip)?;
-    let start = parse_datetime(&options.start_date)?;
+    let start = resolve_start(repo, options.start_date.as_deref(), exclusive_base)?;
     let end = resolve_end(options.end_date.as_deref(), start, chain.len())?;
     let timestamps = random_timestamps(chain.len(), start, end)?;
     let branch = options.branch.clone().unwrap_or_else(|| "time-travel".to_string());
@@ -157,7 +167,7 @@ pub fn run_retime_root(repo: &Repository, options: &RetimeRootOptions) -> Result
     let root = find_root_commit(repo, tip)?;
     let mut chain = commits_in_range(repo, root, tip)?;
     chain.insert(0, root);
-    let start = parse_datetime(&options.start_date)?;
+    let start = resolve_start(repo, options.start_date.as_deref(), root)?;
     let end = resolve_end(options.end_date.as_deref(), start, chain.len())?;
     let timestamps = random_timestamps(chain.len(), start, end)?;
     let branch = options.branch.clone().unwrap_or_else(|| "time-travel".to_string());
@@ -169,6 +179,13 @@ pub fn run_retime_root(repo: &Repository, options: &RetimeRootOptions) -> Result
 fn resolve_tip(repo: &Repository, tip: &str) -> Result<ObjectId> {
     use super::history::{resolve_ref_tip, resolve_rev};
     if tip == "HEAD" { resolve_rev(repo, "HEAD") } else { resolve_ref_tip(repo, tip) }
+}
+
+fn resolve_start(repo: &Repository, start_date: Option<&str>, fallback_commit: ObjectId) -> Result<NaiveDateTime> {
+    match start_date {
+        Some(value) => parse_datetime(value),
+        None => commit_author_datetime(repo, fallback_commit),
+    }
 }
 
 fn resolve_end(end_date: Option<&str>, start: NaiveDateTime, commit_count: usize) -> Result<NaiveDateTime> {

@@ -17,21 +17,22 @@ struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
 
-    /// 范围起点 commit（`(commit..tip]`，不含起点本身）
+    /// Range start commit (`(commit..tip]` is retimed; its author time is the default window start)
     commit: Option<String>,
 
-    /// 随机时间窗口起点（`YYYY-MM-DD` 或 `YYYY-MM-DDTHH:MM:SS`）
+    /// Random window start (`YYYY-MM-DD` or `YYYY-MM-DDTHH:MM:SS`)
+    #[arg(short, long, value_name = "START")]
     start_date: Option<String>,
 
-    /// 随机时间窗口终点；缺省为 `start + commit 数量` 天
+    /// Random window end; defaults to `start + number of commits in range` days
     #[arg(short, long, value_name = "END")]
     end_date: Option<String>,
 
-    /// 输出分支名；缺省为 `time-travel`
+    /// Output branch name; defaults to `time-travel`
     #[arg(short, long, value_name = "BRANCH")]
     branch: Option<String>,
 
-    /// 范围终点 revision；缺省为 `HEAD`
+    /// Range end revision; defaults to `HEAD`
     #[arg(long, default_value = "HEAD")]
     tip: String,
 }
@@ -39,24 +40,25 @@ struct Cli {
 /// 子命令。
 #[derive(Subcommand)]
 enum Command {
-    /// 从 root 到 `--tip` 改写全部 commit 时间（含 root），可选改写 root message
+    /// Retime all commits from repository root through `tip` (inclusive)
     Root {
-        /// 随机时间窗口起点（`YYYY-MM-DD` 或 ISO datetime）
-        start_date: String,
+        /// Random window start; defaults to the root commit author time
+        #[arg(short, long, value_name = "START")]
+        start_date: Option<String>,
 
-        /// 随机时间窗口终点
+        /// Random window end
         #[arg(short, long, value_name = "END")]
         end_date: Option<String>,
 
-        /// 输出分支名；缺省为 `time-travel`
+        /// Output branch name; defaults to `time-travel`
         #[arg(short, long, value_name = "BRANCH")]
         branch: Option<String>,
 
-        /// 范围终点 revision；缺省为 `HEAD`
+        /// Range end revision; defaults to `HEAD`
         #[arg(long, default_value = "HEAD")]
         tip: String,
 
-        /// 改写 root commit message（对应旧 `git-root`）
+        /// Optional new message for the root commit
         #[arg(short, long)]
         message: Option<String>,
     },
@@ -72,8 +74,10 @@ fn main() -> Result<()> {
         }
         None => {
             let commit = cli.commit.ok_or_else(|| git_tools::validation("missing commit hash for range retime"))?;
-            let start_date = cli.start_date.ok_or_else(|| git_tools::validation("missing start datetime"))?;
-            run_retime(&repo, &RetimeOptions { commit, start_date, end_date: cli.end_date, branch: cli.branch, tip: cli.tip })?
+            run_retime(
+                &repo,
+                &RetimeOptions { commit, start_date: cli.start_date, end_date: cli.end_date, branch: cli.branch, tip: cli.tip },
+            )?
         }
     };
 

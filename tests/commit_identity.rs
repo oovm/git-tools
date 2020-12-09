@@ -1,6 +1,8 @@
 #![doc = "reword / retime 贡献者身份保留集成测试。"]
 
-use git_tools::commit::{commit_parents, copy_signature, open_here, read_commit, same_contributor, write_commit};
+use git_tools::commit::{
+    commit_author_datetime, commit_parents, copy_signature, open_here, read_commit, same_contributor, write_commit,
+};
 
 #[test]
 fn write_commit_preserves_author_and_committer() {
@@ -22,4 +24,14 @@ fn write_commit_preserves_author_and_committer() {
     assert!(same_contributor(&source_committer, &new_committer));
     assert_eq!(new_author.time.seconds, source_author.time.seconds);
     assert_eq!(new_committer.time.seconds, source_committer.time.seconds);
+}
+
+#[test]
+fn commit_author_datetime_matches_head_author() {
+    let repo = open_here().expect("discover git repository from cwd");
+    let head = repo.head_id().expect("read HEAD").detach();
+    let commit = read_commit(&repo, head).expect("read HEAD commit");
+    let decoded = commit.decode().expect("decode commit");
+    let parsed = commit_author_datetime(&repo, head).expect("parse author datetime");
+    assert_eq!(parsed.and_utc().timestamp(), decoded.author().time.seconds);
 }
