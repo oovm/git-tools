@@ -4,10 +4,24 @@ use std::{collections::HashSet, path::Path};
 
 use byte_unit::{Byte, UnitType};
 use gix::{ObjectId, Repository, objs::Kind};
+use tracing::instrument;
 
 use crate::error::{Result, ResultExt, message};
 
-use super::blob::{BlobFormat, BlobItem};
+use super::{
+    blob::{BlobFormat, BlobItem},
+    report::BlobScanSummary,
+};
+
+/// 对象库扫描后的 blob 排名结果。
+pub struct BlobRanking {
+    /// 扫描摘要计数。
+    pub summary: BlobScanSummary,
+    /// 按大小降序排列的 blob。
+    pub ranked: Vec<BlobItem>,
+    /// 无法读取的 blob OID。
+    pub corrupt: Vec<ObjectId>,
+}
 
 /// 扫描 git 对象库并统计 blob / tree。
 pub struct Cleaner {
@@ -32,8 +46,10 @@ impl Cleaner {
     }
 
     /// 遍历对象库，收集 blob 与 tree 的 OID 及 blob 总大小。
+    #[instrument(skip(self))]
     pub fn collect_info(&mut self) -> Result<()> {
         self.clear();
+        tracing::debug!("scanning object database");
         let mut seen = HashSet::new();
         for oid in self.repo.objects.store_ref().iter().or_raise(|| message!("iterate object database"))? {
             let oid = oid.or_raise(|| message!("read object id from odb iterator"))?;
@@ -53,30 +69,41 @@ impl Cleaner {
                 Kind::Commit | Kind::Tag => {}
             }
         }
+        tracing::info!(
+            blobs = self.blobs.len(),
+            trees = self.trees.len(),
+            total_blob_bytes = self.blob_size,
+            "object database scan complete"
+        );
         Ok(())
     }
 
-    /// 打印并返回按大小降序排列的前 `show` 个 blob。
-    pub fn largest_objects(&self, show: usize) -> Vec<BlobItem> {
-        println!("Found {} blob(s) and {} tree(s) (total blob size {})", self.blobs.len(), self.trees.len(), self.all_size());
-        println!("Top {} largest blob(s):", show);
+    /// 返回按大小降序排列的 blob 排名（不写入 stdout）。
+    #[instrument(skip(self))]
+    pub fn rank_largest_blobs(&self) -> BlobRanking {
         let mut ranked = Vec::with_capacity(self.blobs.len());
+        let mut corrupt = Vec::new();
         for oid in &self.blobs {
             let blob = match self.repo.find_blob(*oid) {
                 Ok(blob) => blob,
                 Err(_) => {
-                    println!("{} is missing or corrupt", short_oid(*oid));
+                    tracing::warn!(oid = %short_oid(*oid), "blob object missing or corrupt");
+                    corrupt.push(*oid);
                     continue;
                 }
             };
             ranked.push(BlobItem { id: *oid, format: BlobFormat::from_bytes(&blob.data), size: blob.data.len() });
         }
         ranked.sort_by_key(|item| std::cmp::Reverse(item.size));
-        let width = 1 + show.max(1).ilog10() as usize;
-        for (index, item) in ranked.iter().take(show).enumerate() {
-            println!("{:width$} | {item}", index + 1, width = width);
+        BlobRanking {
+            summary: BlobScanSummary {
+                blob_count: self.blobs.len(),
+                tree_count: self.trees.len(),
+                total_size: self.all_size(),
+            },
+            ranked,
+            corrupt,
         }
-        ranked.into_iter().take(show).collect()
     }
 
     /// 返回已收集 blob 的总大小（人类可读字符串）。
@@ -85,7 +112,6 @@ impl Cleaner {
     }
 }
 
-/// 将 OID 格式化为 8 位十六进制前缀。
 fn short_oid(oid: ObjectId) -> String {
     oid.to_string().chars().take(8).collect()
 }
