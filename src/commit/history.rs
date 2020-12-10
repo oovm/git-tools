@@ -8,8 +8,6 @@ use gix::{
         Target,
         transaction::{Change, LogChange, PreviousValue, RefEdit, RefLog},
     },
-    revision::walk::Sorting,
-    traverse::commit::simple::CommitTimeOrder,
 };
 
 use crate::error::{Result, ResultExt, message, validation};
@@ -63,18 +61,15 @@ pub fn find_root_commit(repo: &Repository, tip: ObjectId) -> Result<ObjectId> {
     }
 }
 
-/// 收集 `exclusive_base..tip` 范围内的 commit OID，按 commit 时间从旧到新。
+/// 收集 `exclusive_base..tip` 范围内的 commit OID，按拓扑序从旧到新（父先于子）。
+///
+/// 改写规划须保证祖先先处理；按 author 时间排序在 `git-retime` 后会打乱父子顺序。
 pub fn commits_in_range(repo: &Repository, exclusive_base: ObjectId, tip: ObjectId) -> Result<Vec<ObjectId>> {
     let mut ids = Vec::new();
-    for info in repo
-        .rev_walk([tip])
-        .with_pruned([exclusive_base])
-        .sorting(Sorting::ByCommitTime(CommitTimeOrder::OldestFirst))
-        .all()
-        .or_raise(|| message!("configure revision walk"))?
-    {
+    for info in repo.rev_walk([tip]).with_pruned([exclusive_base]).all().or_raise(|| message!("configure revision walk"))? {
         ids.push(info.or_raise(|| message!("walk commit history"))?.id().detach());
     }
+    ids.reverse();
     Ok(ids)
 }
 
