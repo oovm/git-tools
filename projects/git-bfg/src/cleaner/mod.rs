@@ -69,7 +69,7 @@ impl Cleaner {
             sv.insert(item);
         }
         for (index, item) in sv.iter().take(show).enumerate() {
-            println!("{:width$} | {}", index + 1, item, width = 1 + show.log10() as usize)
+            println!("{:width$} | {}", index + 1, item, width = 1 + show.ilog10() as usize)
         }
         sv.into_vec()
     }
