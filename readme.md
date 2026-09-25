@@ -4,11 +4,12 @@ Rust git utilities built on **[gix](https://github.com/GitoxideLabs/gitoxide)** 
 
 ## 🧰 Tools
 
-| Binary       | Library module | Purpose                                                                |
-|--------------|----------------|------------------------------------------------------------------------|
-| `bfg`        | `object`       | Scan the object database and list the largest blobs                    |
-| `git-reword` | `commit`       | Rewrite commit messages at the object layer without interactive rebase |
-| `git-retime` | `commit`       | Spread commit timestamps across a date range on a new branch           |
+| Binary            | Library module | Purpose                                                                |
+|-------------------|----------------|------------------------------------------------------------------------|
+| `bfg`             | `object`       | Scan the object database and list the largest blobs                    |
+| `git-reword`      | `commit`       | Rewrite commit messages at the object layer without interactive rebase |
+| `git-retime`      | `commit`       | Spread commit timestamps across a date range on a new branch           |
+| `git-change-logs` | `changelog`    | Draft release reference changelogs from tags and resolve GitHub authors |
 
 ## 🚀 Install
 
@@ -18,6 +19,7 @@ Install a binary from the Git repository (no local clone required):
 cargo install --git https://github.com/oovm/git-tools.git --bin bfg
 cargo install --git https://github.com/oovm/git-tools.git --bin git-reword
 cargo install --git https://github.com/oovm/git-tools.git --bin git-retime
+cargo install --git https://github.com/oovm/git-tools.git --bin git-change-logs
 ```
 
 Track the `dev` branch while the crate is pre-release:
@@ -26,6 +28,7 @@ Track the `dev` branch while the crate is pre-release:
 cargo install --git https://github.com/oovm/git-tools.git --branch dev --bin bfg
 cargo install --git https://github.com/oovm/git-tools.git --branch dev --bin git-reword
 cargo install --git https://github.com/oovm/git-tools.git --branch dev --bin git-retime
+cargo install --git https://github.com/oovm/git-tools.git --branch dev --bin git-change-logs
 ```
 
 ## 🛠️ Development
@@ -52,14 +55,17 @@ git-tools/
     repo.rs       # repository discovery and OID helpers
     object/       # ODB blob inventory
     commit/       # commit history, message rewrite, and retime
+    changelog/    # release reference changelogs and GitHub author lookup
   bin/
     bfg.rs
     git-reword.rs
     git-retime.rs
+    git-change-logs.rs
   documentation/
     bfg.md
     reword.md
     retime.md
+    change-logs.md
 ```
 
 ## 🧪 CI

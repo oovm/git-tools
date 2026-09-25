@@ -1,8 +1,8 @@
 [package]
 name = "git-tools"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Aster <192607617@qq.com>"]
-description = "Git utilities built on gix: blob scanner, commit message reword, and commit retime"
+description = "Git utilities built on gix: blob scanner, commit reword/retime, and release change-logs"
 readme = "readme.md"
 license = "MPL-2.0"
 edition = "2021"
@@ -23,18 +23,25 @@ path = "bin/git-reword.rs"
 name = "git-retime"
 path = "bin/git-retime.rs"
 
+[[bin]]
+name = "git-change-logs"
+path = "bin/git-change-logs.rs"
+
 [dependencies]
 byte-unit = "5.1"
 chrono = "0.4"
-clap = { version = "4.5", features = ["derive"] }
+clap = { version = "4.5", features = ["derive", "env"] }
 gix = { version = "0.68", default-features = false, features = ["revision", "max-performance-safe"] }
 gix-error = "0.3.2"
 miette = { version = "7.0", features = ["fancy"] }
 rand = "0.8"
+regex = { version = "1.11", default-features = false, features = ["std", "unicode-perl", "unicode-case"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+ureq = { version = "2.12", default-features = false, features = ["json"] }
+urlencoding = "2.1"
 
 [lints.rust]
 missing_docs = "deny"

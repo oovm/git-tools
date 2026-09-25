@@ -4,6 +4,8 @@
 //!
 //! 模块按能力划分：[`repo`] 仓库访问、[`object`] 对象库、[`commit`] 提交历史与改写。
 
+/// release 参考 changelog 与 GitHub 作者解析。
+pub mod changelog;
 /// commit 历史遍历与 message 改写。
 pub mod commit;
 /// CLI 追踪与 miette 错误报告。
