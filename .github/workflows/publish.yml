@@ -17,25 +17,39 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            artifact_name: bfg
-            asset_name: bfg-linux-amd64
+            asset_name: git-tools-linux-amd64.zip
           - os: windows-latest
-            artifact_name: bfg.exe
-            asset_name: bfg-win-amd64.exe
+            asset_name: git-tools-windows-amd64.zip
           - os: macos-latest
-            artifact_name: bfg
-            asset_name: bfg-mac-amd64
+            asset_name: git-tools-macos-amd64.zip
 
     steps:
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@nightly
       - name: Build
         run: cargo build --release --locked
-      - name: Upload binaries to release
+      - name: Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="${{ matrix.asset_name }}"
+          dir="target/release"
+          if [[ "${RUNNER_OS}" == "Windows" ]]; then
+            powershell -NoProfile -Command "
+              Compress-Archive -Force -Path \
+                '${dir}/bfg.exe','${dir}/git-reword.exe','${dir}/git-retime.exe' \
+                -DestinationPath '${out}'
+            "
+          else
+            (cd "${dir}" && zip -j "../../${out}" bfg git-reword git-retime)
+          fi
+          ls -la "${out}"
+      - name: Upload release archive
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/release/${{ matrix.artifact_name }}
+          file: ${{ matrix.asset_name }}
           asset_name: ${{ matrix.asset_name }}
           tag: ${{ github.ref }}
           overwrite: true
