@@ -12,10 +12,7 @@ pub fn init_tracing() {
 
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn"));
 
-    tracing_subscriber::registry()
-        .with(fmt::layer().with_writer(std::io::stderr).with_target(true))
-        .with(filter)
-        .init();
+    tracing_subscriber::registry().with(fmt::layer().with_writer(std::io::stderr).with_target(true)).with(filter).init();
 }
 
 /// CLI 侧包装，使 `gix-error` 经 miette 渲染。

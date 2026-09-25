@@ -11,7 +11,6 @@
 
 # Rust
 target/**/*
-Cargo.lock
 time-travel.*
 reword.pending.json
 
